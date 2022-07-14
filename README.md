@@ -4,4 +4,12 @@
  <br />Project Still work in progress
  
  ## Usage
- <br />Still working on it :D
+ ### Run in command line with:
+ python3 path/to/Predict_Stock.py
+ ### Options:
+ -mode [Linear (default)]
+ -graph [None, regular, interactable (default)]
+
+
+
+
