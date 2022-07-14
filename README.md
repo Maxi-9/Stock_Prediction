@@ -8,6 +8,7 @@
  python3 path/to/Predict_Stock.py
  ### Options:
  -mode [Linear (default)]
+ <br />
  -graph [None, regular, interactable (default)]
 
 
