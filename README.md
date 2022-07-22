@@ -6,6 +6,7 @@
  ## Usage
  ### Run in command line with:
  python3 path/to/Predict_Stock.py
+ <br />
  ### Options:
  -mode [Linear (default)]
  <br />
