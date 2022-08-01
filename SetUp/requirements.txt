@@ -1,6 +1,6 @@
 keras==2.9.0
 matplotlib==3.5.1
-numpy==1.21.5
+numpy==1.22.0
 pandas==1.4.2
 Quandl==3.7.0
 requests==2.27.1
