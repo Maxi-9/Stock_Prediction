@@ -5,16 +5,16 @@
  #
  ## SetUp
  ### To update the used packages do:
- #### pip3 install -r -u Stock_Prediction/SetUp/requirements.txt
+ #### pip3 install -r -u Stock_Prediction/requirements.txt
  ###### &nbsp;
 
  ### If the program doesn't work try:
- #### pip3 install -r Stock_Prediction/SetUp/requirements.txt
+ #### pip3 install -r Stock_Prediction/requirements.txt
 
  #
  ## Usage
  ### Run in command line with:
- python3 path/to/Predict_Stock.py
+ python3 Stock_Prediction/Programs/Predict_Stock
  ###### &nbsp;
  ### Options:
  -mode [Linear (default)]
@@ -23,9 +23,11 @@
  -graph [None, regular, interactable (default)]
  <br /> &nbsp; &nbsp; Will set the data output method
  <br /><br />
-  -period [60 (default), Put any number]
+  -period [max (default), Put any number, enter "max" to get maximum data]
  <br /> &nbsp; &nbsp; Will set how many days of data the neural network use to predict
- 
+ <br /><br />
+ -forecast [5 (default), Enter amount of days]
+ <br /> &nbsp; &nbsp; Will set how many days of data the neural network use to predict
 ###### &nbsp;
  ### Required Options:
  -stock [Put stock choice]
