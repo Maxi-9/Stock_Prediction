@@ -12,4 +12,4 @@ if options=="Error":
 elif (False):
     print(options)
 elif (options["-mode"]=="Linear"):
-    LinearRegression.LinearPredection(options,StockData)
+    LinearRegression.LinearPrediction(options,StockData)

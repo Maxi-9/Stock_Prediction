@@ -8,59 +8,99 @@ import matplotlib.pyplot as plt
 
 import seaborn as sns
 
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+
 from sklearn.linear_model import LinearRegression
 from sklearn import preprocessing, svm
+import yfinance as yf
 #replacement for cross validation
 from sklearn.model_selection import train_test_split
+import openpyxl
 
-def LinearPredection(options,df):
+import pandas_ta as ta
+
+
+
+def LinearPrediction(options,df):
+    #slightly modified version of: https://www.alpharithms.com/predicting-stock-prices-with-linear-regression-214618/
     pd.set_option('mode.chained_assignment', None)
+    openVals=df[['Open']].to_dict(orient='index')
 
     df = df[['Close']]
-    forecast_out = options["-forecast"]
+    #Opendf=df[['Open']]
+    df.ta.ema(close='Close', length=10, append=True)
 
-    df['Prediction'] = df[['Close']].shift(-forecast_out)
-    
-    X = np.array(df.drop(['Prediction'],axis=1))
-    
-    X = preprocessing.scale(X)
-    X_forecast = X[-forecast_out:]
-    X = X[:-forecast_out]
+    df = df.iloc[10:]
 
-    y = np.array(df['Prediction'])
-    y = y[:-forecast_out]
-    # below sentence has been modified for train_test_split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
+    X_train, X_test, y_train, y_test = train_test_split(df[['Close']], df[['EMA_10']], test_size=.2)
 
-    clf = LinearRegression()
-    clf.fit(X_train,y_train)
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
-    confidence = clf.score(X_test, y_test)
+    print("Model Coefficients(This should be closer to 1):", model.coef_)
+    print("Mean Absolute Error(The lower, the better):", mean_absolute_error(y_test, y_pred))
+    print("Coefficient of Determination(This should be closer to 1):", r2_score(y_test, y_pred)) 
     
 
-    forecast_prediction = clf.predict(X_forecast)
-
+    try:
+        wb =openpyxl.load_workbook("Results.xlsx")
+    except:
+        wb = openpyxl.Workbook()
+        wb.save("Results.xlsx")
     
-    last_date = df.iloc[-1].name
-    last_unix = last_date.timestamp()
-    one_day = 86400
-    next_unix = last_unix + one_day
+    workSheetName=f"Linear Regression, {options['-stock']}"
 
+    try:
+        ws = wb[workSheetName]
+    except:
+        ws = wb.create_sheet(workSheetName)
+    #Write Data into Sheet
+    WriteCell(ws,1,1,"Dates:")
+    WriteCell(ws,1,2,"Open")
+    WriteCell(ws,1,3,"Pred Close")
+    WriteCell(ws,1,4,"Actual Close")
+    WriteCell(ws,1,5,"Buy?")
+    WriteCell(ws,1,6,"Profit")
 
-    for i in forecast_prediction:
-        next_date = datetime.datetime.fromtimestamp(next_unix)
-        next_unix += 86400
-        df.loc[next_date] = [np.nan for _ in range(len(df.columns)-1)]+[i]
+    values=df.to_dict(orient='index')
 
-    if (options["-graph"]=="Regular"):          
-        sns.lineplot(data=df)
-        sns.set_theme()  # Default seaborn style
-        plt.xticks(rotation=30)
+    cellValue=str(datetime.date.today())
+    row=0
+    rowVal=1
+    while (True):
+        rowVal+=1        
+        if ws.cell(row=rowVal,column=1).value==cellValue:
+            row=rowVal
+            break
 
-        plt.title(f"Closing Stock Prices")
-        plt.show()
+        if ws.cell(row=rowVal,column=1).value==None or ws.cell(row=rowVal,column=1).value=="":
+            row=rowVal
+            break
 
-    elif options["-graph"]=="Raw":
-        print("confidence: ", confidence)
-        print(forecast_prediction)
+        WriteCell(ws,rowVal,4,values[ws.cell(row=rowVal,column=1).value]["Close"])
+        WriteCell(ws,rowVal,6,values[ws.cell(row=rowVal,column=1).value]["Close"]-openVals[ws.cell(row=rowVal,column=1).value]["Open"])
         
+
+        
+    print(df.iloc[-1]["EMA_10"])#df['EMA_10'].iloc[[-1]].iloc[0]["EMA_10"])
+    EmVal=df.iloc[-1]["EMA_10"]
+    CurVal=get_current_price(options["-stock"])
+    WriteCell(ws,row,1,cellValue)
+    WriteCell(ws,row,2,CurVal)
+    WriteCell(ws,row,3,""+str(EmVal))
+    WriteCell(ws,row,5,""+str(EmVal>CurVal))
+    
+
+    wb.save("Results.xlsx")
+    
+
+def WriteCell(sheet, row, col, cell_data):
+    sheet.cell(row=row,column=col).value = cell_data
+    return
+
+
+def get_current_price(symbol):
+    ticker = yf.Ticker(symbol)
+    todays_data = ticker.history(period='1d')
+    return todays_data['Open'][0]
