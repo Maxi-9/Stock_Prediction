@@ -1,7 +1,7 @@
 ### ⚠️ Work In Progress!!!⚠️ Most likely won't work
-
+<br/>
 ## About: 
-___
+
 - This project was created as my capstone project
  - Made by Max S.
 - <b>Project Still work in progress</b>
