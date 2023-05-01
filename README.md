@@ -1,37 +1,52 @@
-# Stock_Prediction
- Stock Prediction project for capstone class
- <br />Made by Max S.
- <br />Project Still work in progress
- #
- ## SetUp
- ### To update the used packages do:
- #### pip3 install -r -u Stock_Prediction/requirements.txt
- ###### &nbsp;
+### ⚠️ Work In Progress!!!⚠️ Most likely won't work
 
- ### If the program doesn't work try:
- #### pip3 install -r Stock_Prediction/requirements.txt
+## About: 
+___
+- This project was created as my capstone project
+ - Made by Max S.
+- <b>Project Still work in progress</b>
+ 
+<br/>
 
- #
- ## Usage
- ### Run in command line with:
- python3 Stock_Prediction/Programs/Predict_Stock
- ###### &nbsp;
- ### Options:
- -mode [Linear (default)]
- <br /> &nbsp; &nbsp; Will set the type of stock prediction method
- <br /><br />
- -graph [None, regular, interactable (default)]
- <br /> &nbsp; &nbsp; Will set the data output method
- <br /><br />
-  -period [max (default), Put any number, enter "max" to get maximum data]
- <br /> &nbsp; &nbsp; Will set how many days of data the neural network use to predict
- <br /><br />
- -forecast [5 (default), Enter amount of days]
- <br /> &nbsp; &nbsp; Will set how many days of data the neural network use to predict
-###### &nbsp;
- ### Required Options:
- -stock [Put stock choice]
- <br /> &nbsp; &nbsp; Will set the stock used in program
+
+
+
+<details>
+<summary style="font-size: 18px">SetUp</summary>
+
+Use this to install all packages required:<br/>
+ ```pip3 install -r -u Stock_Prediction/requirements.txt```
+<br/>
+
+If my program gives an error try this instead:<br/>
+ ```pip3 install -r Stock_Prediction/requirements.txt```
+
+
+</details>
+<br/>
+
+
+
+
+
+<details>
+<summary style="font-size: 18px">Settings</summary>
+Here are the current avalible settings in the Settings file: <br/>
+
+* Work in progress
+
+</details><br/>
+
+
+
+
+<details>
+<summary style="font-size: 18px">Usage</summary>
+
+ After configuring settings, run in command line with:<br/>
+ ```python3 Stock_Prediction/Programs/Predict_Stock```
+</details>
+ 
 
 
 

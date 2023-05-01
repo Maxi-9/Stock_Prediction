@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
         "matplotlib"
-    ]
+    ],
+    "python.analysis.typeCheckingMode": "off"
 }

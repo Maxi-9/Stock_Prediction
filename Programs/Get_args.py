@@ -1,4 +1,6 @@
 import sys
+#Deprecated
+#Will be removed in a future versions
 
 def GetOptions():
     options={}

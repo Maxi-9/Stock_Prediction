@@ -1,6 +1,7 @@
 import yfinance as yf
+import Settings
 
-def GetStocks(options):
-    ticker = yf.Ticker(options["-stock"])
-    df = ticker.history(period=options["-period"])
+def GetStocks():
+    ticker = yf.Ticker(Settings.Stock)
+    df = ticker.history(period=Settings.Period)
     return df

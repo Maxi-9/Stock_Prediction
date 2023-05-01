@@ -1,15 +1,6 @@
 import GetStocks
-import Get_args
 import LinearRegression
+import Settings
 
-options=Get_args.GetOptions()
-
-if options!="Error":
-    StockData=GetStocks.GetStocks(options)
-
-if options=="Error":
-    pass
-elif (False):
-    print(options)
-elif (options["-mode"]=="Linear"):
-    LinearRegression.LinearPrediction(options,StockData)
+StockData=GetStocks.GetStocks()
+LinearRegression.LinearPrediction(StockData)
