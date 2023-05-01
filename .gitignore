@@ -1,6 +1,8 @@
-.gitignore
-.vscode
+*.gitignore
+*.vscode
 *.pyc
 *.xlsx
 *.txt
 venv
+*.ipynb_checkpoints
+*.gitattributes
