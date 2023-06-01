@@ -35,7 +35,7 @@ If my program gives an error try this instead:<br/>
 
 <details>
 <summary style="font-size: 18px">Settings</summary>
-Here are the current avalible settings in the Settings file: <br/>
+Here are the current available settings in the Settings file: <br/>
 
 * Work in progress
 
