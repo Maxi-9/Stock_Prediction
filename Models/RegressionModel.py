@@ -1,66 +1,81 @@
 import pandas as pd
+from overrides import overrides
 from sklearn.linear_model import LinearRegression
-from joblib import dump, load
+
+from model import Commons, ModelNotTrainedError, ModelAlreadyTrainedError
+from stocks import Stock_Data, Features
 
 
-def saveModel(file, model):
-    dump(model, file, compress=('gzip', 6))
+class RegressionModel(Commons):
+    # Creates new model
+    def __init__(self):
+        super().__init__()
 
+    @overrides
+    def get_model_type(self):
+        return "Linear"
 
-def loadModel(file):
-    try:
-        return load(file)
-    except FileNotFoundError:
-        return None
+    @overrides
+    def create_model(self):
+        return LinearRegression()
 
+    # Trains Model on given data
+    @overrides
+    def train(self, df: pd.DataFrame):
+        if self.training_stock:
+            raise ModelAlreadyTrainedError(self.get_model_type())
+        # Create a new DataFrame with the necessary columns
 
-# Creates new model
-def newModel():
-    return LinearRegression()
+        x, y = Stock_Data.train_split(df, self.trainOn, self.predictOn)
 
+        # Train the model on the dataset
+        self.model.fit(x, y)
+        self.is_trained = True
 
-# Trains Model on given data
-def train(df, model):
-    # Create a new DataFrame with the necessary columns
+    @overrides
+    def test_predict(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Split the data
+        x_test, y_test = Stock_Data.train_split(df, self.trainOn, self.predictOn)
 
-    data = pd.DataFrame({
-        'Previous_Close': df['Close'].shift(1),
-        'Open': df['Open'],
-        'Close': df['Close']
-    })
+        # Use the model to make predictions
 
-    # Drop any rows with missing values
-    data = data.dropna()
-    # Separate the features and target variable
-    X = data[['Previous_Close', 'Open']]  # Features
-    y = data['Close']  # Target variable
+        pred = self.model.predict(x_test)
 
-    # Train the model on the entire dataset
-    model.fit(X, y)
+        # Add the predictions to the original DataFrame
+        df = df.copy()
+        df.loc[:, "pred_value"] = pred
 
-    return model
+        return df
 
+    @overrides
+    def _select_features(self):
+        self.trainOn: [Features] = [
+            Features.Open,
+            Features.High,
+            Features.Low,
+            # Features.Close,
+            Features.Volume,
+            Features.Dividends,
+            Features.Splits,
+            Features.RSI,
+            Features.MACD,
+            Features.BB,
+            Features.Prev_Close,
+        ]
 
-# Returns the predicted value and the date for the value
-def process(df, model):
-    # Get the previous day's close and current day's opening value
-    prev_close = df['Close'].iloc[-1]
-    current_open = df['Open'].iloc[-1]
+        self.predictOn: Features = Features.Close
 
-    current_date = df.index[-1].strftime('%Y-%m-%d')  # Get date
+    @overrides
+    def predict(self, df: pd.DataFrame) -> float:
+        if len(df) < 1:
+            raise ValueError("Input DataFrame should have at least one row")
+        if self.is_trained is not True:
+            raise ModelNotTrainedError()
 
-    # If the current day's opening value is missing, use the last available opening value
-    if pd.isnull(current_open):
-        current_open = df['Open'].iloc[-2]
+        x = df[Features.to_list(self.trainOn)].iloc[[-1]]  # Select the last column
 
-    # Create a DataFrame with the necessary columns and matching column names
-    data = pd.DataFrame({
-        'Previous_Close': [prev_close],
-        'Open': [current_open]
-    })
+        # Predict the target values using the model
+        prediction = self.model.predict(x)
 
-    # Predict the day's closing value using the model
-    prediction = model.predict(data)
-
-    # Get result
-    return prediction[0], current_date
+        # Get result
+        return prediction
