@@ -26,11 +26,20 @@ class Features(Enum):
     Prev_Close = (["Prev_Close"], True)
     Date = (["Year", "Month", "Day", "Day_Of_Week"], False)
 
+    def __init__(self, columns, is_normalized):
+        self._columns = columns
+        self._is_normalized = is_normalized
+
+    def __call__(self, is_normalized=None):
+        return FeaturesObject(
+            self, is_normalized if is_normalized is not None else self._is_normalized
+        )
+
     def columns(self) -> [str]:
-        return self.value[0]
+        return self._columns
 
     def is_normalized(self):
-        return self.value[1]
+        return self._is_normalized
 
     def __iter__(self):
         for column in self.value[0]:
@@ -68,6 +77,13 @@ class Features(Enum):
                 Features[feature] if isinstance(feature, str) else feature
             ).columns()
         ]
+
+
+class FeaturesObject:
+    def __init__(self, feature: Features, is_normalized: bool):
+        self.feature = feature
+        self.is_normalized = is_normalized
+        self.columns = feature.columns()
 
 
 class Normalizer:
@@ -205,7 +221,7 @@ class Stock_Data:
         :param df: Takes normalized df from self.df
         :param convert: column you want to inverse normalize
         :param based_on: converts the selected column into full scale based on this original column
-        :return:
+        :return
         """
         if self.normal is not None:
             return self.normal.inv_normalize_col(df, convert, based_on)

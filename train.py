@@ -35,13 +35,6 @@ def _get_args():
     )  # Overwrite
 
     parser.add_argument(
-        "-f",
-        "--overfit",
-        help="Enables duplicate training of stocks(And potentially overfitting)",
-        action="store_true",
-    )  # Allows stocks to be retrained
-
-    parser.add_argument(
         "-s",
         "--stocks",
         help="Put stock(s) in form: stock.market or just stock",
@@ -62,7 +55,7 @@ def _get_args():
     parser.add_argument(
         "-p",
         "--period",
-        help='Options: [Int+"d","max"], default 5 years',
+        help='Options: [Int+"d","max"], default 5y',
         type=str,
         default="5y",
     )  # Choose amount of data
@@ -82,24 +75,23 @@ def train_linear(args):
 
     test_sets = []
     for stockName in args.stocks:
-        if not args.overfit and stockName in model.training_stock:
-            print(f"Skipping: {stockName}; Model already trained on this stock")
-            continue
-
         print(f"Training: {stockName}")
 
         stock = Stock_Data(
             stockName, args.period, model.get_features(), normalized=True
         )  # TODO: Add normalized to CLI
+
+        # Split data,
         train_df, test_df = Stock_Data.train_test_split(stock.df, args.split)
+
         model.train(train_df)
-        model.training_stock += stockName
+        model.training_stock.append(stockName)
         test_sets.append((stockName, test_df))
 
     if args.split != 1:
         print("\n\nFinished Training, now testing")
         for stockName, test_df in test_sets:
-            print("Testing: {stockName}")
+            print(f"Testing: {stockName}")
             pred_df = model.test_predict(test_df)
             metrics = model.calculate_metrics(pred_df)
             print(str(metrics))
@@ -111,6 +103,7 @@ def train_linear(args):
 
 def main(args):
     # Linear training
+    print(args)
     if args.type[0] == "Linear":
         train_linear(args)
 
