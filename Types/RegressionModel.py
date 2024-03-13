@@ -12,7 +12,7 @@ class RegressionModel(Commons):
         super().__init__()
 
     @overrides
-    def get_model_type(self):
+    def get_model_type(self) -> str:
         return "Linear"
 
     @overrides
