@@ -79,3 +79,7 @@ class RegressionModel(Commons):
 
         # Get result
         return prediction
+
+
+# Important, as it adds the model to the CLI
+Commons.model_mapping["Linear"] = RegressionModel
