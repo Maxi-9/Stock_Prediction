@@ -1,15 +1,15 @@
 import argparse
 
-from Models.RegressionModel import RegressionModel
+from model import Commons
 from stocks import Stock_Data
 
 
-# Testing Args:  python3 Train.py Models/Saved/test.model Linear -o -s AAPL AMZN
+# Testing Args:  python3 Train.py Types/test.spmodel Linear -o -s AAPL AMZN
 
 
 def _get_args():
     """
-    Get Args, test call: python3 Train.py Models/Saved/linear1.model Linear -o -s AAPL
+    Get Args, test call: python3 Train.py Types/Models/linear1.model Linear -o -s AAPL
 
     :return: arguments from command line
     """
@@ -64,14 +64,14 @@ def _get_args():
     return args
 
 
-def train_linear(args):
+def main(args):
     model = None
 
     if not args.overwrite:
-        model = RegressionModel.load_from_file(args.filename[0], if_exists=True)
+        model = Commons.load_from_file(args.filename[0], if_exists=True)
 
     if model is None:
-        model = RegressionModel()
+        model = Commons.model_mapping[args.type[0]]()
 
     test_sets = []
     for stockName in args.stocks:
@@ -99,13 +99,6 @@ def train_linear(args):
 
     model.save_model(args.filename[0])
     print(f"Successfully saved model at: {args.filename[0]}")
-
-
-def main(args):
-    # Linear training
-    print(args)
-    if args.type[0] == "Linear":
-        train_linear(args)
 
 
 if __name__ == "__main__":

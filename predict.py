@@ -1,6 +1,6 @@
 import argparse
 
-from Models.RegressionModel import RegressionModel
+from Types.RegressionModel import RegressionModel
 from stocks import Stock_Data
 
 
@@ -45,7 +45,6 @@ def predict(filename, stockName, period):
         stockName, period, model.get_features(), normalized=True
     )  # TODO: Add normalized to CLI
     print(stock.df)
-    # Get stock data (just need latest row)
 
     # Predict closing value
     predicted_close = model.predict(stock.df)

@@ -4,7 +4,7 @@ from model import Commons
 from stocks import Stock_Data
 
 
-# Test Args: python3 test.py Models/Saved/test.model -s AMZN
+# Test Args: python3 test.py Models/test.spmodel -s AMZN
 def _get_args():
     parser = argparse.ArgumentParser(
         prog="test.py",
@@ -28,7 +28,7 @@ def _get_args():
     parser.add_argument(
         "-p",
         "--period",
-        help='Options: [Int+"d","max"], default 5 years',
+        help='Options: [Int+"d","max"], default 5y',
         type=str,
         default="5y",
     )  # Choose amount of data
@@ -37,7 +37,9 @@ def _get_args():
     return args
 
 
-def test_linear(model, args):
+def main(args):
+    model = Commons.load_from_file(args.filename[0])
+
     for stockName in args.stocks:
         stock = Stock_Data(
             stockName, args.period, model.get_features(), normalized=True
@@ -53,14 +55,6 @@ def test_linear(model, args):
         # Calculate metrics
         metrics = model.calculate_metrics(pred_df)
         print(f"{metrics}\n\n")
-
-
-def main(args):
-    # Load the trained model
-    model = Commons.load_from_file(args.filename[0])
-
-    if model.model_type == "Linear":
-        test_linear(model, args)
 
 
 if __name__ == "__main__":
