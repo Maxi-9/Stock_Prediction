@@ -1,11 +1,12 @@
-import numpy as np
+import importlib.util
+import os
+from abc import ABC, abstractmethod
+from typing import Optional
+
 import pandas as pd
 from joblib import dump, load
-from sklearn.metrics import (
-    mean_absolute_error,
-)
-from sklearn.metrics import mean_squared_error, r2_score
 
+from metrics import Metrics
 from stocks import Features
 
 
@@ -18,7 +19,7 @@ class ModelNotTrainedError(Exception):
 
 
 class ModelAlreadyTrainedError(Exception):
-    """Exception raised when trying to retrain an already trained model."""
+    """Exception raised when trying to retrain an already trained model. Used for less intelligent models, like linear regression"""
 
     def __init__(self, model_type: str):
         super().__init__(
@@ -35,113 +36,26 @@ class BaseClassError(TypeError):
         )
 
 
-class Metrics:
-    @staticmethod
-    def calculate_mse(y_true, y_pred):
-        return mean_squared_error(y_true, y_pred)
-
-    @staticmethod
-    def calculate_r2(y_true, y_pred):
-        return r2_score(y_true, y_pred)
-
-    @staticmethod
-    def calculate_mae(y_true, y_pred):
-        return mean_absolute_error(y_true, y_pred)
-
-    @staticmethod
-    def calculate_rmse(y_true, y_pred):
-        return np.sqrt(mean_squared_error(y_true, y_pred))
-
-    @staticmethod
-    def calculate_cv(y_true):
-        return np.std(y_true.values.flatten()) / np.mean(y_true.values.flatten())
-
-    @staticmethod
-    def calculate_mpe(y_true, y_pred):
-        epsilon = 1e-10  # small constant
-        y_true, y_pred = np.nan_to_num(y_true), np.nan_to_num(y_pred)
-        return np.nanmean((y_true - y_pred) / (y_true + epsilon))
-
-    @staticmethod
-    def calculate_mape(y_true, y_pred):
-        epsilon = 1e-10  # small constant
-        y_true, y_pred = np.nan_to_num(y_true), np.nan_to_num(y_pred)
-        return np.nanmean(np.abs((y_true - y_pred) / (y_true + epsilon))) * 100
-
-    @staticmethod
-    def calculate_smape(y_true, y_pred):
-        epsilon = 1e-10  # small constant
-        y_true, y_pred = np.nan_to_num(y_true), np.nan_to_num(y_pred)
-        return (
-            np.nanmean(
-                2
-                * np.abs(y_pred - y_true)
-                / (np.abs(y_true) + np.abs(y_pred) + epsilon)
-            )
-            * 100
-        )
-
-    def __init__(
-        self,
-        mse,
-        r2,
-        mae=None,
-        rmse=None,
-        cv=None,
-        mpe=None,
-        mape=None,
-        smape=None,
-    ):
-        self.mse = mse
-        self.r2 = r2
-        self.mae = mae
-        self.rmse = rmse
-        self.cv = cv
-        self.mpe = mpe
-        self.mape = mape
-        self.smape = smape
-
-    def __str__(self):
-        metrics = [
-            ("MSE (lb)", self.mse),
-            ("R2 (hb)", self.r2),
-            ("MAE (lb)", self.mae),
-            ("RMSE (lb)", self.rmse),
-            ("CV (lb)", self.cv),
-            ("MPE (lb)", self.mpe),
-            ("MAPE (lb)", self.mape),
-            ("SMAPE (lb)", self.smape),
-        ]
-
-        max_len = max(len(name) for name, _ in metrics)
-
-        lines = []
-        for name, value in metrics:
-            if value is not None:
-                lines.append(f"{name.ljust(max_len)}: {value}")
-
-        return "\n".join(lines)
-
-    def print_metrics(self):
-        print(str(self))
-
-
-# Common Class for model types to inherit to get full program support
-class Commons:
+class Commons(ABC):
     """
-    Base Class for all models and should be inherited to gain full functionality and methods of class.
+    Base Class for all models and should be inherited.
     Not to be initiated directly!
     """
+
+    # Add mappings here to use in CLI
+    model_mapping = {
+        # Add other mappings here
+    }
 
     def __init__(self):
         # Sets the version of scheme(stored values)
         self.model_version: float = 1.0
-        self.model_type = self.get_model_type()
+        self.model_type: str = self.get_model_type()
         self.model = self.create_model()
 
-        self.predictOn = None
-        self.trainOn = None
-        self.training_stock = []
+        self.predictOn: Optional[Features] = None
+        self.trainOn: [Features] = None
+        self.training_stock: [str] = []
         self.is_trained = False
         self.features_version: float = Features.get_version()
 
@@ -188,6 +102,7 @@ class Commons:
         """
         dump(self, file, compress=("gzip", compress_lvl))
 
+    @abstractmethod
     def train(self, df: pd.DataFrame):
         """
         Trains model on df. Warning some models have special constrains, such as Linear model can only be trained on 1 set of data.
@@ -197,6 +112,7 @@ class Commons:
         raise NotImplementedError()
 
     # Overwritten for prediction of outputs, Adds column of "pred_value" as close predictions from model
+    @abstractmethod
     def test_predict(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Takes the entire dataset and predicts values from it. Adds pred_value column with model's predictions. Should be used to calculate metrics of model.
@@ -205,6 +121,7 @@ class Commons:
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def predict(self, df: pd.DataFrame) -> float:
         """
         Predicts on given values, if model type can only handle 1 input row, it will use the last row as the input.
@@ -252,6 +169,7 @@ class Commons:
             else:
                 raise FileNotFoundError
 
+    @abstractmethod
     def create_model(self):
         """
 
@@ -259,9 +177,28 @@ class Commons:
         """
         raise NotImplementedError()
 
-    def get_model_type(self):
+    @abstractmethod
+    def get_model_type(self) -> str:
         """
-
-        :return: Selected model type
+        This is what differences models in files and should just return a string
+        :return: model type in string
         """
+        # If you created a custom model, don't forget to add your model to Commons.model_mapping
         raise BaseClassError()
+
+
+def import_children(directory="Types"):
+    for filename in os.listdir(directory):
+        if filename.endswith(".py") and not filename.startswith("__"):
+            # Construct full path to file
+            file_path = os.path.join(directory, filename)
+            # Create a module name based on the file name
+            module_name = os.path.splitext(filename)[0]
+            # Import the module
+            spec = importlib.util.spec_from_file_location(module_name, file_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+
+# Assuming your child classes are in a directory named 'children'
+import_children()
