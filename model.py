@@ -1,10 +1,12 @@
 import importlib.util
 import os
+import sys
 from abc import ABC, abstractmethod
 from typing import Optional
 
+import joblib
 import pandas as pd
-from joblib import dump, load
+from joblib import dump
 
 from metrics import Metrics
 from stocks import Features
@@ -47,12 +49,13 @@ class Commons(ABC):
         # Add other mappings here
     }
 
-    def __init__(self):
+    def __init__(self, lookback: int = 1):
         # Sets the version of scheme(stored values)
         self.model_version: float = 1.0
         self.model_type: str = self.get_model_type()
-        self.model = self.create_model()
 
+        # Model training settings
+        self.lookback: int = lookback
         self.predictOn: Optional[Features] = None
         self.trainOn: [Features] = None
         self.training_stock: [str] = []
@@ -61,6 +64,9 @@ class Commons(ABC):
 
         # Select model's features
         self._select_features()
+
+        # Create model with settings
+        self.model = self.create_model()
 
     def _select_features(self):
         """
@@ -162,7 +168,7 @@ class Commons(ABC):
         :return: returns the model(of any variant) from specified file
         """
         try:
-            return load(file)
+            return joblib.load(file)
         except FileNotFoundError:
             if if_exists:
                 return None
@@ -188,16 +194,24 @@ class Commons(ABC):
 
 
 def import_children(directory="Types"):
-    for filename in os.listdir(directory):
-        if filename.endswith(".py") and not filename.startswith("__"):
-            # Construct full path to file
-            file_path = os.path.join(directory, filename)
-            # Create a module name based on the file name
-            module_name = os.path.splitext(filename)[0]
-            # Import the module
-            spec = importlib.util.spec_from_file_location(module_name, file_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+    models_dir = os.path.join(os.path.dirname(__file__), directory)
+    sys.path.insert(0, models_dir)  # Add the directory to sys.path
+    for file in os.listdir(models_dir):
+        if file.endswith("Model.py"):
+            model_name = file[:-3]  # Remove the .py extension
+            try:
+                module = importlib.import_module(model_name)
+                model_class = getattr(module, model_name.capitalize())
+                if hasattr(model_class, "get_model_type"):
+                    model_type = model_class.get_model_type()
+                    Commons.model_mapping[model_type] = model_class
+                else:
+                    print(
+                        f"Warning: The class {model_name} does not implement 'get_model_type'."
+                    )
+            except (ImportError, AttributeError) as e:
+                print(f"Error importing {model_name}: {e}")
+    sys.path.remove(models_dir)  # Remove the directory from sys.path after importing
 
 
 # Assuming your child classes are in a directory named 'children'

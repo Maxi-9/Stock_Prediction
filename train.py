@@ -24,7 +24,7 @@ def _get_args():
     )  # Save at location
 
     parser.add_argument(
-        "type", nargs=1, help="Choose ML type.", choices=["Linear"]
+        "type", nargs=1, help="Choose ML type.", choices=Commons.model_mapping.keys()
     )  # Choose ML type
 
     parser.add_argument(
@@ -97,7 +97,7 @@ def main(args):
             print(str(metrics))
             print("\n[ ")
 
-    model.save_model(args.filename[0])
+    save_model(model, args.filename[0])
     print(f"Successfully saved model at: {args.filename[0]}")
 
 

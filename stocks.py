@@ -251,12 +251,20 @@ class Stock_Data:
     # Splits into what is getting predicted on and what it's trying predicting
     @staticmethod
     def train_split(
-        df: pd.DataFrame, training: [Features], prediction: Features = Features.Close
+        df: pd.DataFrame,
+        training: [Features],
+        prediction: Features = Features.Close,
+        look_back: int = 1,
     ) -> (pd.DataFrame, pd.DataFrame):
         # Assume `data` is your DataFrame containing stock data
         features = df[Features.to_list(training)]  # Features in data
+        Stock_Data.look_back(df, look_back)
         target = df[prediction.columns()]
         return features, target
+
+    @staticmethod
+    def look_back(df: pd.DataFrame, look_back: int = 1) -> pd.DataFrame:
+        return df.tail(look_back)
 
     def getTodayStocks(self, stock: str):
         ticker = yf.Ticker(stock)
