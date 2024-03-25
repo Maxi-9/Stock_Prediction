@@ -77,27 +77,25 @@ def main(args):
     for stockName in args.stocks:
         print(f"Training: {stockName}")
 
-        stock = Stock_Data(
-            stockName, args.period, model.get_features(), normalized=True
-        )  # TODO: Add normalized to CLI
+        stock = Stock_Data(stockName, args.period, model.get_features())
 
         # Split data,
         train_df, test_df = Stock_Data.train_test_split(stock.df, args.split)
 
         model.train(train_df)
+
         model.training_stock.append(stockName)
-        test_sets.append((stockName, test_df))
+        test_sets.append((stock, test_df.copy()))
 
     if args.split != 1:
         print("\n\nFinished Training, now testing")
-        for stockName, test_df in test_sets:
-            print(f"Testing: {stockName}")
-            pred_df = model.test_predict(test_df)
-            metrics = model.calculate_metrics(pred_df)
-            print(str(metrics))
-            print("\n[ ")
+        for stock, test_df in test_sets:
+            print(f"Testing: {stock.name}")
+            test_df.loc[:, "pred_value"] = model.batch_predict(test_df)
 
-    save_model(model, args.filename[0])
+            print(model.calculate_metrics(test_df))
+
+    model.save_model(args.filename[0])
     print(f"Successfully saved model at: {args.filename[0]}")
 
 

@@ -41,17 +41,13 @@ def main(args):
     model = Commons.load_from_file(args.filename[0])
 
     for stockName in args.stocks:
-        stock = Stock_Data(
-            stockName, args.period, model.get_features(), normalized=True
-        )  # TODO: Add normalized to CLI
+        stock = Stock_Data(stockName, args.period, model.get_features())
 
         print(f"Testing on: {stockName}, len: {len(stock.df)}")
 
         # Use the model to make predictions
-        pred_df = model.test_predict(stock.df)
+        pred_df = model.batch_predict(stock.df)
 
-        pred_df = stock.inv_normalize(pred_df)
-        pred_df = stock.inv_normalize_col(pred_df, "pred_value", "Close")
         # Calculate metrics
         metrics = model.calculate_metrics(pred_df)
         print(f"{metrics}\n\n")

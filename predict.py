@@ -41,17 +41,10 @@ def predict(filename, stockName, period):
     # Load model
     model = RegressionModel.load_from_file(filename)
 
-    stock = Stock_Data(
-        stockName, period, model.get_features(), normalized=True
-    )  # TODO: Add normalized to CLI
-    print(stock.df)
+    stock = Stock_Data(stockName, period, model.get_features())
 
     # Predict closing value
     predicted_close = model.predict(stock.df)
-
-    predicted_close = stock.inv_normalize_value(
-        predicted_close, model.predictOn.columns()[0]
-    )
 
     print(
         f"Predicted closing value({stock.df.index[-1]}) for {stockName}: {predicted_close[0]:.2f}"
