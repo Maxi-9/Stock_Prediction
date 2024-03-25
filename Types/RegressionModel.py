@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from overrides import overrides
 from sklearn.linear_model import LinearRegression
@@ -11,8 +12,8 @@ class RegressionModel(Commons):
     def __init__(self):
         super().__init__()
 
-    @overrides
-    def get_model_type(self) -> str:
+    @staticmethod
+    def get_model_type() -> str:
         return "Linear"
 
     @overrides
@@ -21,7 +22,7 @@ class RegressionModel(Commons):
 
     # Trains Model on given data
     @overrides
-    def train(self, df: pd.DataFrame):
+    def _train(self, df: pd.DataFrame):
         if self.training_stock:
             raise ModelAlreadyTrainedError(self.get_model_type())
         # Create a new DataFrame with the necessary columns
@@ -33,7 +34,7 @@ class RegressionModel(Commons):
         self.is_trained = True
 
     @overrides
-    def test_predict(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _batch_predict(self, df: pd.DataFrame) -> np.ndarray:
         # Split the data
         x_test, y_test = Stock_Data.train_split(df, self.trainOn, self.predictOn)
 
@@ -41,11 +42,7 @@ class RegressionModel(Commons):
 
         pred = self.model.predict(x_test)
 
-        # Add the predictions to the original DataFrame
-        df = df.copy()
-        df.loc[:, "pred_value"] = pred
-
-        return df
+        return pred
 
     @overrides
     def _select_features(self):
@@ -53,10 +50,10 @@ class RegressionModel(Commons):
             Features.Open,
             Features.High,
             Features.Low,
-            # Features.Close,
-            Features.Volume,
-            Features.Dividends,
-            Features.Splits,
+            # Features.Close, # Don't Include if predicting on
+            # Features.Volume,
+            # Features.Dividends,
+            # Features.Splits,
             Features.RSI,
             Features.MACD,
             Features.BB,
@@ -66,7 +63,7 @@ class RegressionModel(Commons):
         self.predictOn: Features = Features.Close
 
     @overrides
-    def predict(self, df: pd.DataFrame) -> float:
+    def _predict(self, df: pd.DataFrame) -> float:
         if len(df) < 1:
             raise ValueError("Input DataFrame should have at least one row")
         if self.is_trained is not True:

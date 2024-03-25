@@ -1,3 +1,4 @@
+from keras import Input
 from keras.models import Sequential
 from overrides import overrides
 from tensorflow.keras.layers import Dense, LSTM, Dropout
@@ -11,64 +12,76 @@ class SequentialModel(Commons):
     def __init__(self):
         super().__init__()
 
-    @overrides
-    def get_model_type(self) -> str:
+    @staticmethod
+    def get_model_type() -> str:
         return "Sequential"
 
     @overrides
     def create_model(self):
         # Define the Sequential model architecture
-        self.model = Sequential()
-        self.model.add(
-            LSTM(
-                units=50,
-                return_sequences=True,
-                input_shape=(len(self.trainOn), self.lookback),
-            )
-        )
+        model = Sequential()
+        model.add(Input(shape=(self.lookback, len(Features.to_list(self.trainOn)))))
 
-        self.model.add(Dropout(0.2))
-        self.model.add(LSTM(units=100, return_sequences=True))
-        self.model.add(Dropout(0.2))
-        self.model.add(LSTM(units=100))
-        self.model.add(Dropout(0.2))
-        self.model.add(Dense(units=1))
+        # Add the LSTM layers
+        model.add(LSTM(units=100, return_sequences=True))
+        model.add(Dropout(0.2))
 
-        self.compile()
+        model.add(LSTM(units=100, return_sequences=True))
+        model.add(Dropout(0.2))
 
-    def compile(self):
-        self.model.compile(optimizer="adam", loss="mse")
+        model.add(LSTM(units=100))
+        model.add(Dropout(0.2))
+
+        # Add the output Dense layer
+        model.add(Dense(units=1))
+
+        model.compile(optimizer="adam", loss="mse")
+
+        return model
 
     # Trains Model on given data
     @overrides
-    def train(self, df: pd.DataFrame):
+    def _train(self, df: pd.DataFrame):
+        """
+        Trains the model using the provided data.
+
+        Args:
+            df (pd.DataFrame): DataFrame with all features
+
+        Returns:
+            None
+        """
+
         # Prepare input and target data
         x, y = Stock_Data.train_split(df, self.trainOn, self.predictOn)
-        x = x.last(self.lookback).values  # Reshape input to 3D
+        print(x)
+        # Create rolling windows
+        x_rolled, y_rolled = Stock_Data.create_rolling_windows(x, y, self.lookback)
 
-        # Create and train the model
-        self.model.fit(
-            x, y, epochs=10, batch_size=32, shuffle=False
-        )  # Adjust epochs and batch_size
+        # Train the model using the rolling windows
+        self.model.fit(x_rolled, y_rolled, epochs=10, batch_size=32, shuffle=False)
+
+        # Mark the model as trained
         self.is_trained = True
 
-        # self.compile()
-
     @overrides
-    def test_predict(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _batch_predict(self, df: pd.DataFrame) -> np.ndarray:
         # Split the data
         x_test, y_test = Stock_Data.train_split(df, self.trainOn, self.predictOn)
-        x_test = x_test.values.reshape(
-            (-1, len(self.trainOn), 30)
-        )  # Reshape input to 3D
+
+        # Reshape input data
+        x_rolled, y_rolled = Stock_Data.create_rolling_windows(
+            x_test, y_test, self.lookback
+        )
 
         # Use the model to make predictions
-        pred = self.model.predict(x_test)
+        predictions = self.model.predict(x_rolled, batch_size=32)
 
-        # Add the predictions to the original DataFrame
-        df = df.copy()
-        df.loc[:, "pred_value"] = pred.flatten()
-        return df
+        # Return predictions with padding to original length
+        return np.concatenate(
+            (np.repeat(predictions[:1, :], self.lookback - 1, axis=0), predictions),
+            axis=0,
+        )
 
     @overrides
     def _select_features(self):
@@ -88,7 +101,7 @@ class SequentialModel(Commons):
         self.predictOn: Features = Features.Close
 
     @overrides
-    def predict(self, df: pd.DataFrame) -> float:
+    def _predict(self, df: pd.DataFrame) -> float:
         if len(df) < 1:
             raise ValueError("Input DataFrame should have at least one row")
         if self.is_trained is not True:
