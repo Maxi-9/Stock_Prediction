@@ -17,7 +17,7 @@ class Metrics:
         mape=None,
         smape=None,
         directional_accuracy=None,
-        hit_rate=None,
+        profit_rate=None,
         cumulative_return=None,
         maximum_drawdown=None,
         sharpe_ratio=None,
@@ -32,7 +32,7 @@ class Metrics:
         self.mape = mape
         self.smape = smape
         self.directional_accuracy = directional_accuracy
-        self.hit_rate = hit_rate
+        self.hit_rate = profit_rate
         self.cumulative_return = cumulative_return
         self.maximum_drawdown = maximum_drawdown
         self.sharpe_ratio = sharpe_ratio
@@ -74,33 +74,57 @@ class Metrics:
 
     @staticmethod
     def calculate_directional_accuracy(y_true, y_pred):
+        if y_true.shape[0] != y_pred.shape[0]:
+            raise ValueError("y_true and y_pred must have the same number of elements")
+
         y_true_diff = np.diff(y_true)
         y_pred_diff = np.diff(y_pred)
+
+        if y_true_diff.shape != y_pred_diff.shape:
+            raise ValueError(
+                "Differences in prediction and true values have different shapes"
+            )
         return (np.sign(y_true_diff) == np.sign(y_pred_diff)).mean() * 100
 
-    @staticmethod
-    def calculate_hit_rate(y_true, y_pred, range_threshold):
-        within_range = np.abs(y_true - y_pred) <= range_threshold
-        return within_range.mean() * 100
+    # @staticmethod
+    # def calculate_hit_rate(y_true, y_pred, range_threshold):
+    #     within_range = np.abs(y_true - y_pred) <= range_threshold
+    #     return within_range.mean() * 100
 
     @staticmethod
-    def calculate_cumulative_return(y_true, y_pred, initial_capital):
-        returns = y_pred / y_true - 1
+    def calculate_profit_rate(open_vals, close_vals):
+        profitable_trades = close_vals > open_vals
+
+        profit_rate = np.mean(profitable_trades) * 100
+
+        return profit_rate
+
+    @staticmethod
+    def calculate_cumulative_return(open_vals, close_vals, initial_capital=10000):
+        returns = close_vals / open_vals - 1
         cumulative_return = initial_capital * np.prod(1 + returns)
         return cumulative_return
 
     @staticmethod
-    def calculate_maximum_drawdown(y_true, y_pred, initial_capital=10000):
-        portfolio_values = initial_capital * (1 + (y_pred / y_true - 1).cumsum())
+    def calculate_maximum_drawdown(open_vals, close_vals, initial_capital=10000):
+        portfolio_values = initial_capital * (1 + (close_vals / open_vals - 1).cumsum())
         peak = portfolio_values.cummax()
         drawdown = (portfolio_values - peak) / peak
         return drawdown.min()
 
     @staticmethod
     def calculate_sharpe_ratio(
-        y_true, y_pred, risk_free_rate=0.05, periods_per_year=252
+        open_vals, close_vals, risk_free_rate=0.05, periods_per_year=252
     ):
-        returns = y_pred / y_true - 1
+        """
+        Calculates the sharpe ratio.
+        :param open_vals: Filtered open values(based on buy method)
+        :param close_vals: Filtered close values
+        :param risk_free_rate:
+        :param periods_per_year:
+        :return:
+        """
+        returns = close_vals / open_vals - 1
         excess_returns = returns - risk_free_rate / periods_per_year
         sharpe_ratio = (
             excess_returns.mean() / excess_returns.std() * np.sqrt(periods_per_year)
@@ -109,9 +133,9 @@ class Metrics:
 
     @staticmethod
     def calculate_sortino_ratio(
-        y_true, y_pred, risk_free_rate=0.05, periods_per_year=252
+        open_vals, close_vals, risk_free_rate=0.05, periods_per_year=252
     ):
-        returns = y_pred / y_true - 1
+        returns = close_vals / open_vals - 1
         excess_returns = returns - risk_free_rate / periods_per_year
         downside_returns = np.minimum(excess_returns, 0)
         sortino_ratio = (
