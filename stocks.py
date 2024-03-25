@@ -1,10 +1,10 @@
 from enum import Enum
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
 import talib
 import yfinance as yf
-from sklearn.preprocessing import MinMaxScaler
 
 
 class StockNotFound(Exception):
@@ -40,6 +40,9 @@ class Features(Enum):
 
     def is_normalized(self):
         return self._is_normalized
+
+    def __str__(self):
+        return str(self.value[0][0])
 
     def __iter__(self):
         for column in self.value[0]:
@@ -86,54 +89,9 @@ class FeaturesObject:
         self.columns = feature.columns()
 
 
-class Normalizer:
-    # Needs: Data Frame and the columns that you want to be normalized
-    # Use: Scalars only hold 1 min/max value, this holds it for all given columns
-
-    def __init__(self, df: pd.DataFrame, scale_cols: [str]):
-        self.scalars = {}
-        for col in scale_cols:
-            scaler = MinMaxScaler()
-            df[col] = scaler.fit_transform(df[[col]])
-            self.scalars[col] = scaler
-
-        self.df = df
-
-    def get_scaled(self) -> pd.DataFrame:
-        return self.df
-
-    def inv_normalize(self, data: pd.DataFrame) -> pd.DataFrame:
-        data = data.copy()
-        for col, scaler in self.scalars.items():
-            if col in data.columns:
-                data[col] = scaler.inverse_transform(data[[col]])
-        return data
-
-    def inv_normalize_col(
-        self, data: pd.DataFrame, convert: str, based_on: str
-    ) -> pd.DataFrame:
-        data = data.copy()
-        scaler = self.scalars.get(based_on)
-        if scaler is not None:
-            data[convert] = scaler.inverse_transform(data[[convert]])
-            return data
-        else:
-            raise ValueError(f"No scaler found for column: {based_on}")
-
-    def inv_normalize_value(self, value: float, based_on: str):
-        scaler = self.scalars.get(based_on)
-        if scaler is not None:
-            # Reshape your input to match the original data shape
-            value = np.array(value).reshape(-1, 1)
-            inv_normalized = scaler.inverse_transform(value)[0]
-            return inv_normalized
-        else:
-            raise ValueError(f"No scaler found for column: {based_on}")
-
-
 class Stock_Data:
-    def __init__(self, stock: str, period: str, features: [Features], normalized=True):
-        self.stock = stock
+    def __init__(self, name: str, period: str, features: [Features]):
+        self.name = name
         self.period = period
 
         # Get Stocks
@@ -151,52 +109,120 @@ class Stock_Data:
         if Features.Prev_Close in features:
             df = self._add_shift(df)
 
-        # Normalize
-        self.normal = None
-        if normalized:
-            # Save the normal values for later reversal
-            self.normal = Normalizer(df, Features.list_normalized(features))
-            df = self.normal.get_scaled()
-
         # Add Date
         if Features.Date in features:
             df = self._add_date(df)
 
-        #
+        # Make sure that just the wanted features are present
+
+        # df = df[Features.to_list(features)]
+
         df = self._drop_na(df)
         self.df = df
 
     def _get_raw_stock(self) -> pd.DataFrame:
         ticker = yf.Ticker(
-            self.stock,
+            self.name,
         )
 
         historical_data = ticker.history(period=self.period)
         if historical_data.empty:
-            raise StockNotFound(self.stock)
+            raise StockNotFound(self.name)
 
         historical_data.index = historical_data.index.tz_localize(None).normalize()
 
         return historical_data
 
-    # Add more features
-    def _add_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        historical_data = df
+    @staticmethod
+    def create_rolling_windows(
+        x: pd.DataFrame, y: pd.DataFrame, lookback: int
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Creates rolling windows from input and target DataFrames.
 
-        # Calculate technical indicators
-        historical_data["RSI"] = talib.RSI(historical_data["Close"])
-        historical_data["MACD"], _, _ = talib.MACD(historical_data["Close"])
-        (
-            historical_data["BB_UPPER"],
-            historical_data["BB_MIDDLE"],
-            historical_data["BB_LOWER"],
-        ) = talib.BBANDS(historical_data["Close"])
+        Args:
+            x (pd.DataFrame): Input DataFrame.
+            y (pd.DataFrame): Target DataFrame.
+            lookback (int): Lookback period (number of time steps).
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: Input and target NumPy arrays with rolling windows.
+        """
+        # Convert input DataFrame to NumPy array
+        x_values = x.values
+
+        # Create rolling windows for input data
+        x_windows = []
+        for i in range(len(x_values) - lookback + 1):
+            x_window = x_values[i : i + lookback]
+            x_windows.append(x_window)
+        x_windows = np.array(x_windows)
+
+        # Create rolling windows for target data
+        y_values = y.values.reshape(
+            -1, 1
+        )  # Reshape target data to have a single column
+        y_windows = [
+            y_values[i : i + lookback, 0] for i in range(len(y_values) - lookback + 1)
+        ]
+        y_windows = np.array(y_windows)
+
+        print(f"Input data shape: {x_windows.shape}")
+        return (
+            x_windows,
+            y_windows[:, -1],
+        )  # Return the last value of each target window
+
+    # Add more features
+    def _add_features(self, df: pd.DataFrame, window_size: int = 182) -> pd.DataFrame:
+        historical_data = df.copy()
+
+        # Initialize an empty list to store the features
+        features = []
+
+        # Iterate over the dataset using a rolling window
+        for i in range(window_size, len(historical_data)):
+            window = historical_data.iloc[i - window_size : i]
+
+            # Check if the window has enough data points
+            if len(window) < window_size:
+                features.append([float("nan")] * 5)  # Append NaN values
+            else:
+                # Calculate the technical indicators for the current window
+                rsi = talib.RSI(window["Close"])[-1]
+                macd, _, _ = talib.MACD(
+                    window["Close"], fastperiod=12, slowperiod=26, signalperiod=9
+                )
+                macd_value = macd[-1]
+                bb_upper, bb_middle, bb_lower = talib.BBANDS(
+                    window["Close"], timeperiod=window_size
+                )
+                bb_upper_value, bb_middle_value, bb_lower_value = (
+                    bb_upper[-1],
+                    bb_middle[-1],
+                    bb_lower[-1],
+                )
+
+                # Append the features to the list
+                features.append(
+                    [rsi, macd_value, bb_upper_value, bb_middle_value, bb_lower_value]
+                )
+
+        # Create a DataFrame from the features list and align it with the original data
+        features_df = pd.DataFrame(
+            features,
+            index=historical_data.index[window_size:],
+            columns=["RSI", "MACD", "BB_UPPER", "BB_MIDDLE", "BB_LOWER"],
+        )
+
+        # Combine the technical indicator features with the original data
+        historical_data = pd.concat([historical_data, features_df], axis=1)
 
         return historical_data
 
     def _add_shift(self, df: pd.DataFrame) -> pd.DataFrame:
         # Shift the Close price to get the previous day's closing price
-        df["Prev_Close"] = df["Close"].shift(1)
+        df[str(Features.Prev_Close)] = df["Close"].shift(1)
 
         return df
 
@@ -215,31 +241,6 @@ class Stock_Data:
         # Drop any rows with missing values
         return df.dropna()
 
-    def inv_normalize_col(self, df: pd.DataFrame, convert: str, based_on: str):
-        """
-
-        :param df: Takes normalized df from self.df
-        :param convert: column you want to inverse normalize
-        :param based_on: converts the selected column into full scale based on this original column
-        :return
-        """
-        if self.normal is not None:
-            return self.normal.inv_normalize_col(df, convert, based_on)
-        else:
-            return df
-
-    def inv_normalize(self, df: pd.DataFrame):
-        if self.normal is not None:
-            return self.normal.inv_normalize(df)
-        else:
-            return df
-
-    def inv_normalize_value(self, value, based_on):
-        if self.normal is not None:
-            return self.normal.inv_normalize_value(value, based_on)
-        else:
-            return value
-
     # Train:Test split, higher ratio means more training data
     @staticmethod
     def train_test_split(data, train_ratio=0.8):
@@ -254,17 +255,13 @@ class Stock_Data:
         df: pd.DataFrame,
         training: [Features],
         prediction: Features = Features.Close,
-        look_back: int = 1,
     ) -> (pd.DataFrame, pd.DataFrame):
         # Assume `data` is your DataFrame containing stock data
+
         features = df[Features.to_list(training)]  # Features in data
-        Stock_Data.look_back(df, look_back)
+
         target = df[prediction.columns()]
         return features, target
-
-    @staticmethod
-    def look_back(df: pd.DataFrame, look_back: int = 1) -> pd.DataFrame:
-        return df.tail(look_back)
 
     def getTodayStocks(self, stock: str):
         ticker = yf.Ticker(stock)
