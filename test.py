@@ -42,14 +42,14 @@ def main(args):
 
     for stockName in args.stocks:
         stock = Stock_Data(stockName, args.period, model.get_features())
-
+        test_df = stock.df
         print(f"Testing on: {stockName}, len: {len(stock.df)}")
 
         # Use the model to make predictions
-        pred_df = model.batch_predict(stock.df)
+        test_df.loc[:, "pred_value"] = model.batch_predict(stock.df)
 
         # Calculate metrics
-        metrics = model.calculate_metrics(pred_df)
+        metrics = model.calculate_metrics(test_df)
         print(f"{metrics}\n\n")
 
 

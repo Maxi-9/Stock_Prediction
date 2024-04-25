@@ -4,7 +4,7 @@ from model import Commons
 from stocks import Stock_Data
 
 
-# Testing Args:  python3 Train.py Types/test.spmodel Linear -o -s AAPL AMZN
+# Testing Args:  python3 Train.py Models/test.spmodel Linear -o -s AAPL AMZN
 
 
 def _get_args():
@@ -92,7 +92,7 @@ def main(args):
         for stock, test_df in test_sets:
             print(f"Testing: {stock.name}")
             test_df.loc[:, "pred_value"] = model.batch_predict(test_df)
-
+            print(test_df)
             print(model.calculate_metrics(test_df))
 
     model.save_model(args.filename[0])
