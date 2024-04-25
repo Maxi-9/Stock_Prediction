@@ -15,10 +15,24 @@ class SequentialModel(Commons):
             self.num_layers = num_layers
             self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
             self.fc = nn.Linear(hidden_size, output_size)
+            self.device = torch.device(
+                "cuda"
+                if torch.cuda.is_available()
+                else "mps"
+                if torch.backends.mps.is_available()
+                else "cpu"
+            )
+            print("Running on ", self.device)
+            self.to(self.device)  # Move the model to the device
 
         def forward(self, x):
-            h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-            c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+            h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(
+                self.device
+            )
+            c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(
+                self.device
+            )
+            x = x.to(self.device)  # Move the input data to the device
             out, _ = self.lstm(x, (h0, c0))
             out = self.fc(out[:, -1, :])
             return out
@@ -42,7 +56,7 @@ class SequentialModel(Commons):
             Features.Open,
             Features.High,
             Features.Low,
-            # Features.RSI,
+            #  d;t h mFeatures.RSI,
             # Features.MACD,
             # Features.BB,
             Features.Prev_Close,
@@ -71,15 +85,20 @@ class SequentialModel(Commons):
             train_dataset, batch_size=self.batch_size, shuffle=True
         )
 
-        model = self.create_model()
         criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
         try:
             for epoch in range(self.num_epochs):
                 for inputs, targets in train_loader:
+                    inputs = inputs.to(
+                        self.model.device
+                    )  # Move input data to the device
+                    targets = targets.to(
+                        self.model.device
+                    )  # Move targets to the device
                     optimizer.zero_grad()
-                    outputs = model(inputs)
+                    outputs = self.model(inputs)
                     loss = criterion(outputs, targets.unsqueeze(1))
                     loss.backward()
                     optimizer.step()
@@ -91,7 +110,6 @@ class SequentialModel(Commons):
         except KeyboardInterrupt:
             print("Stopped training early")
 
-        self.model = model
         self.is_trained = True
 
     @overrides
@@ -114,7 +132,7 @@ class SequentialModel(Commons):
             for inputs in test_loader:
                 inputs = inputs[0]
                 outputs = self.model(inputs)
-                predictions.extend(outputs.numpy())
+                predictions.extend(outputs.cpu().numpy())
 
         return np.array(predictions).reshape(-1, 1)
 
@@ -126,7 +144,7 @@ class SequentialModel(Commons):
         self.model.eval()
         with torch.no_grad():
             output = self.model(x_pred)
-            prediction = output.item()
+            prediction = output.cpu().item()
 
         return prediction
 
