@@ -1,121 +1,135 @@
-from keras import Input
-from keras.models import Sequential
+import torch
+import torch.nn as nn
+import torch.utils.data
 from overrides import overrides
-from tensorflow.keras.layers import Dense, LSTM, Dropout
 
 from model import *
 from stocks import Stock_Data, Features
 
 
 class SequentialModel(Commons):
-    # Creates new model
+    class LSTMModel(nn.Module):
+        def __init__(self, input_size, hidden_size, num_layers, output_size):
+            super().__init__()
+            self.hidden_size = hidden_size
+            self.num_layers = num_layers
+            self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+            self.fc = nn.Linear(hidden_size, output_size)
+
+        def forward(self, x):
+            h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+            c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+            out, _ = self.lstm(x, (h0, c0))
+            out = self.fc(out[:, -1, :])
+            return out
+
     def __init__(self):
+        self.hidden_size = 64
+        self.num_layers = 2
+        self.learning_rate = 0.001
+        self.num_epochs = 100
+        self.batch_size = 32
+
         super().__init__()
 
     @staticmethod
     def get_model_type() -> str:
-        return "Sequential"
+        return "LSTM"
+
+    @overrides
+    def _select_features(self):
+        self.trainOn = [
+            Features.Open,
+            Features.High,
+            Features.Low,
+            # Features.RSI,
+            # Features.MACD,
+            # Features.BB,
+            Features.Prev_Close,
+            Features.Date,
+        ]
+        self.predictOn = Features.Close
 
     @overrides
     def create_model(self):
-        # Define the Sequential model architecture
-        model = Sequential()
-        model.add(Input(shape=(self.lookback, len(Features.to_list(self.trainOn)))))
+        input_size = len(Features.to_list(self.trainOn))
+        output_size = 1
+        return self.LSTMModel(
+            input_size, self.hidden_size, self.num_layers, output_size
+        )
 
-        # Add the LSTM layers
-        model.add(LSTM(units=100, return_sequences=True))
-        model.add(Dropout(0.2))
-
-        model.add(LSTM(units=100, return_sequences=True))
-        model.add(Dropout(0.2))
-
-        model.add(LSTM(units=100))
-        model.add(Dropout(0.2))
-
-        # Add the output Dense layer
-        model.add(Dense(units=1))
-
-        model.compile(optimizer="adam", loss="mse")
-
-        return model
-
-    # Trains Model on given data
     @overrides
     def _train(self, df: pd.DataFrame):
-        """
-        Trains the model using the provided data.
-
-        Args:
-            df (pd.DataFrame): DataFrame with all features
-
-        Returns:
-            None
-        """
-
-        # Prepare input and target data
         x, y = Stock_Data.train_split(df, self.trainOn, self.predictOn)
-        print(x)
-        # Create rolling windows
         x_rolled, y_rolled = Stock_Data.create_rolling_windows(x, y, self.lookback)
 
-        # Train the model using the rolling windows
-        self.model.fit(x_rolled, y_rolled, epochs=10, batch_size=32, shuffle=False)
+        train_dataset = torch.utils.data.TensorDataset(
+            torch.tensor(x_rolled, dtype=torch.float32),
+            torch.tensor(y_rolled, dtype=torch.float32),
+        )
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=self.batch_size, shuffle=True
+        )
 
-        # Mark the model as trained
+        model = self.create_model()
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
+
+        try:
+            for epoch in range(self.num_epochs):
+                for inputs, targets in train_loader:
+                    optimizer.zero_grad()
+                    outputs = model(inputs)
+                    loss = criterion(outputs, targets.unsqueeze(1))
+                    loss.backward()
+                    optimizer.step()
+
+                if (epoch + 1) % 10 == 0:
+                    print(
+                        f"Epoch [{epoch+1}/{self.num_epochs}], Loss: {loss.item():.4f}"
+                    )
+        except KeyboardInterrupt:
+            print("Stopped training early")
+
+        self.model = model
         self.is_trained = True
 
     @overrides
-    def _batch_predict(self, df: pd.DataFrame) -> np.ndarray:
-        # Split the data
+    def _batch_predict(self, df: pd.DataFrame) -> np.array:
         x_test, y_test = Stock_Data.train_split(df, self.trainOn, self.predictOn)
-
-        # Reshape input data
         x_rolled, y_rolled = Stock_Data.create_rolling_windows(
             x_test, y_test, self.lookback
         )
 
-        # Use the model to make predictions
-        predictions = self.model.predict(x_rolled, batch_size=32)
-
-        # Return predictions with padding to original length
-        return np.concatenate(
-            (np.repeat(predictions[:1, :], self.lookback - 1, axis=0), predictions),
-            axis=0,
+        test_dataset = torch.utils.data.TensorDataset(
+            torch.tensor(x_rolled, dtype=torch.float32)
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset, batch_size=self.batch_size
         )
 
-    @overrides
-    def _select_features(self):
-        self.trainOn: [Features] = [
-            Features.Open,
-            Features.High,
-            Features.Low,
-            # Features.Close,
-            Features.Volume,
-            Features.Dividends,
-            Features.Splits,
-            Features.RSI,
-            Features.MACD,
-            Features.BB,
-            Features.Prev_Close,
-        ]
-        self.predictOn: Features = Features.Close
+        self.model.eval()
+        predictions = []
+        with torch.no_grad():
+            for inputs in test_loader:
+                inputs = inputs[0]
+                outputs = self.model(inputs)
+                predictions.extend(outputs.numpy())
+
+        return np.array(predictions).reshape(-1, 1)
 
     @overrides
     def _predict(self, df: pd.DataFrame) -> float:
-        if len(df) < 1:
-            raise ValueError("Input DataFrame should have at least one row")
-        if self.is_trained is not True:
-            raise ModelNotTrainedError()
+        x_pred = df[self.trainOn].values[-self.lookback :]
+        x_pred = torch.tensor(x_pred, dtype=torch.float32).unsqueeze(0)
 
-        x = df[Features.to_list(self.trainOn)].iloc[[-1]].values
-        x = x.reshape((1, len(self.trainOn), 30))  # Reshape input to 3D
+        self.model.eval()
+        with torch.no_grad():
+            output = self.model(x_pred)
+            prediction = output.item()
 
-        # Predict the target values using the model
-        prediction = self.model.predict(x)
-
-        # Get result
-        return prediction[0, 0]  # Assuming scalar prediction
+        return prediction
 
 
-# Important, as it adds the model to the CLI
+# Uncomment this to add to train.py/test.py/predict.py automatically
 Commons.model_mapping["Sequential"] = SequentialModel
