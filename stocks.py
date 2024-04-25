@@ -24,7 +24,7 @@ class Features(Enum):
     MACD = (["MACD"], True)
     BB = (["BB_UPPER", "BB_MIDDLE", "BB_LOWER"], True)
     Prev_Close = (["Prev_Close"], True)
-    Date = (["Year", "Month", "Day", "Day_Of_Week"], False)
+    Date = (["Year", "Month", "Day", "Day_Of_Week"], True)
 
     def __init__(self, columns, is_normalized):
         self._columns = columns
@@ -115,7 +115,7 @@ class Stock_Data:
 
         # Make sure that just the wanted features are present
 
-        # df = df[Features.to_list(features)]
+        df = df[Features.to_list(features)]
 
         df = self._drop_na(df)
         self.df = df
@@ -230,10 +230,10 @@ class Stock_Data:
         # Assume df is your DataFrame and 'date' is your date column
 
         # Components of the date
-        df["year"] = df.index.dt.year
-        df["month"] = df.index.dt.month
-        df["day"] = df.index.dt.day
-        df["day_of_week"] = df.index.dt.dayofweek  # Monday=0, Sunday=6
+        df["Year"] = df.index.year
+        df["Month"] = df.index.month
+        df["Day"] = df.index.day
+        df["Day_Of_Week"] = df.index.dayofweek  # Monday=0, Sunday=6
 
         return df
 
