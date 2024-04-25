@@ -32,7 +32,7 @@ class Normalizer:
 
     def inv_normalize_np(self, data: np.ndarray, based_on: str) -> np.ndarray:
         scaler = self.scalars.get(based_on)
-        print(data)
+
         if scaler is not None:
             return scaler.inverse_transform(data)
         else:
