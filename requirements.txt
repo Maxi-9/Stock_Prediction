@@ -6,3 +6,8 @@ overrides~=7.4.0
 tensorflow~=2.16.1
 keras~=3.0.5
 numpy~=1.26.3
+ta-lib
+torch
+requests_cache>=1.0 # For yfinance caching
+requests_ratelimiter>=0.3.1
+scipy>=1.6.3 # For yfinance price repair?
