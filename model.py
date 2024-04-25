@@ -122,7 +122,7 @@ class Commons(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def _batch_predict(self, df: pd.DataFrame) -> np.ndarray:
+    def _batch_predict(self, df: pd.DataFrame) -> np.array:
         """
         :param df: Stock market data with all features
         :return: returns just the prediction column (pred_value column)
@@ -143,6 +143,7 @@ class Commons(ABC):
         :param df: DataFrame with all features
         :return: None
         """
+        # torch compile on arm
 
         self._train(self._normalize(df))
 
@@ -156,7 +157,12 @@ class Commons(ABC):
         """
 
         return self._inv_normalize(
-            self._batch_predict(self._normalize(df)),
+            np.concatenate(
+                (
+                    np.full((self.lookback - 1, 1), np.nan),
+                    self._batch_predict(self._normalize(df)),
+                )
+            ),
             based_on=str(self.predictOn),
         )
 
@@ -167,6 +173,7 @@ class Commons(ABC):
         :param df: takes input
         :return: returns just the prediction
         """
+
         return self._inv_normalize_value(
             self._predict(self._normalize(df)), str(self.predictOn)
         )

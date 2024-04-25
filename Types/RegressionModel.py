@@ -3,14 +3,14 @@ import pandas as pd
 from overrides import overrides
 from sklearn.linear_model import LinearRegression
 
-from model import Commons, ModelNotTrainedError, ModelAlreadyTrainedError
+from model import Commons, ModelNotTrainedError
 from stocks import Stock_Data, Features
 
 
 class RegressionModel(Commons):
     # Creates new model
     def __init__(self):
-        super().__init__()
+        super().__init__(lookback=1)
 
     @staticmethod
     def get_model_type() -> str:
@@ -23,8 +23,6 @@ class RegressionModel(Commons):
     # Trains Model on given data
     @overrides
     def _train(self, df: pd.DataFrame):
-        if self.training_stock:
-            raise ModelAlreadyTrainedError(self.get_model_type())
         # Create a new DataFrame with the necessary columns
 
         x, y = Stock_Data.train_split(df, self.trainOn, self.predictOn)
@@ -34,7 +32,7 @@ class RegressionModel(Commons):
         self.is_trained = True
 
     @overrides
-    def _batch_predict(self, df: pd.DataFrame) -> np.ndarray:
+    def _batch_predict(self, df: pd.DataFrame) -> np.array:
         # Split the data
         x_test, y_test = Stock_Data.train_split(df, self.trainOn, self.predictOn)
 
