@@ -4,7 +4,7 @@ import torch.utils.data
 from overrides import overrides
 
 from model import *
-from stocks import Stock_Data, Features
+from stocks import StockData, Features
 
 
 class SequentialModel(Commons):
@@ -38,11 +38,19 @@ class SequentialModel(Commons):
             return out
 
     def __init__(self):
-        self.hidden_size = 64
-        self.num_layers = 2
-        self.learning_rate = 0.001
-        self.num_epochs = 100
-        self.batch_size = 32
+        # Regular settings
+        # self.hidden_size = 64
+        # self.num_layers = 2
+        # self.learning_rate = 0.001
+        # self.num_epochs = 100
+        # self.batch_size = 32
+
+        # More capable settings
+        self.hidden_size = 512
+        self.num_layers = 6
+        self.learning_rate = 0.0001
+        self.num_epochs = 200
+        self.batch_size = 64
 
         super().__init__()
 
@@ -54,13 +62,13 @@ class SequentialModel(Commons):
     def _select_features(self):
         self.trainOn = [
             Features.Open,
-            Features.High,
-            Features.Low,
-            #  d;t h mFeatures.RSI,
-            # Features.MACD,
-            # Features.BB,
+            # Features.High,
+            # Features.Low,
+            Features.RSI,
+            Features.MACD,
+            Features.BB,
             Features.Prev_Close,
-            Features.Date,
+            # Features.Date,
         ]
         self.predictOn = Features.Close
 
@@ -74,8 +82,8 @@ class SequentialModel(Commons):
 
     @overrides
     def _train(self, df: pd.DataFrame):
-        x, y = Stock_Data.train_split(df, self.trainOn, self.predictOn)
-        x_rolled, y_rolled = Stock_Data.create_rolling_windows(x, y, self.lookback)
+        x, y = StockData.train_split(df, self.trainOn, self.predictOn)
+        x_rolled, y_rolled = StockData.create_rolling_windows(x, y, self.lookback)
 
         train_dataset = torch.utils.data.TensorDataset(
             torch.tensor(x_rolled, dtype=torch.float32),
@@ -114,27 +122,20 @@ class SequentialModel(Commons):
 
     @overrides
     def _batch_predict(self, df: pd.DataFrame) -> np.array:
-        x_test, y_test = Stock_Data.train_split(df, self.trainOn, self.predictOn)
-        x_rolled, y_rolled = Stock_Data.create_rolling_windows(
-            x_test, y_test, self.lookback
-        )
-
-        test_dataset = torch.utils.data.TensorDataset(
-            torch.tensor(x_rolled, dtype=torch.float32)
-        )
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=self.batch_size
-        )
+        x_test, y_test = StockData.train_split(df, self.trainOn, self.predictOn)
+        x_test_values = x_test.values
 
         self.model.eval()
         predictions = []
         with torch.no_grad():
-            for inputs in test_loader:
-                inputs = inputs[0]
-                outputs = self.model(inputs)
-                predictions.extend(outputs.cpu().numpy())
+            for i in range(len(x_test_values) - self.lookback + 1):
+                x_window = x_test_values[i : i + self.lookback]
+                x_window = torch.tensor(x_window, dtype=torch.float32).unsqueeze(0)
+                output = self.model(x_window)
+                predictions.append(output.cpu().numpy())
 
-        return np.array(predictions).reshape(-1, 1)
+        predictions = np.concatenate(predictions, axis=0)
+        return predictions
 
     @overrides
     def _predict(self, df: pd.DataFrame) -> float:
