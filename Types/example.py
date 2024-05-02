@@ -1,7 +1,7 @@
 from overrides import overrides
 
 from model import *
-from stocks import Stock_Data, Features
+from stocks import StockData, Features
 
 
 class SequentialModel(Commons):
@@ -37,8 +37,8 @@ class SequentialModel(Commons):
 
     @overrides
     def _train(self, df: pd.DataFrame):
-        x, y = Stock_Data.train_split(df, self.trainOn, self.predictOn)
-        x_rolled, y_rolled = Stock_Data.create_rolling_windows(x, y, self.lookback)
+        x, y = StockData.train_split(df, self.trainOn, self.predictOn)
+        x_rolled, y_rolled = StockData.create_rolling_windows(x, y, self.lookback)
         # x_rolled has shape (n_samples, lookback, n_features) with features being len(self.trainOn)
         # y_rolled has shape (n_samples,) (978,)
         try:
@@ -56,8 +56,8 @@ class SequentialModel(Commons):
         :param df: Dataset with features from trainOn without lookback
         :return: returns just the prediction column (pred_value column) with the date index
         """
-        x_test, y_test = Stock_Data.train_split(df, self.trainOn, self.predictOn)
-        x_rolled, y_rolled = Stock_Data.create_rolling_windows(
+        x_test, y_test = StockData.train_split(df, self.trainOn, self.predictOn)
+        x_rolled, y_rolled = StockData.create_rolling_windows(
             x_test, y_test, self.lookback
         )
         pass
