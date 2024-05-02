@@ -1,6 +1,6 @@
+from Tools.parse_args import Parse_Args
+from Tools.stocks import StockData
 from model import Commons
-from parse_args import Parse_Args
-from stocks import StockData
 
 
 # Test Args: python3 test.py Models/test.spmodel -s AMZN

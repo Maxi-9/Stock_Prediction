@@ -1,7 +1,7 @@
 from overrides import overrides
 
+from Tools.stocks import StockData, Features
 from model import *
-from stocks import StockData, Features
 
 
 class SequentialModel(Commons):
@@ -50,7 +50,7 @@ class SequentialModel(Commons):
         self.is_trained = True
 
     @overrides
-    def _batch_predict(self, df: pd.DataFrame) -> np.ndarray:
+    def _batch_predict(self, df: pd.DataFrame) -> np.array:
         """
         Takes the entire dataset and predicts values from it. Useful for calculate metrics of model.
         :param df: Dataset with features from trainOn without lookback

@@ -1,6 +1,6 @@
+from Tools.parse_args import Parse_Args
+from Tools.stocks import StockData
 from Types.RegressionModel import RegressionModel
-from parse_args import Parse_Args
-from stocks import StockData
 
 
 @Parse_Args.parser("Predict values using trained ML model.")

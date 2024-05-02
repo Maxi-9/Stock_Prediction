@@ -3,8 +3,8 @@ import pandas as pd
 from overrides import overrides
 from sklearn.linear_model import LinearRegression
 
+from Tools.stocks import StockData, Features
 from model import Commons, ModelNotTrainedError
-from stocks import StockData, Features
 
 
 class RegressionModel(Commons):

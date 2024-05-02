@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.utils.data
 from overrides import overrides
 
+from Tools.stocks import StockData, Features
 from model import *
-from stocks import StockData, Features
 
 
 class SequentialModel(Commons):

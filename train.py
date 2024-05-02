@@ -1,6 +1,6 @@
+from Tools.parse_args import Parse_Args
+from Tools.stocks import StockData
 from model import Commons
-from parse_args import Parse_Args
-from stocks import StockData
 
 
 # Testing Args:  python3 Train.py Models/test.spm Linear -o -s AAPL -s AMZN

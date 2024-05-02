@@ -9,9 +9,9 @@ import numpy as np
 import pandas as pd
 from joblib import dump
 
-from metrics import Metrics
-from normalizer import Normalizer
-from stocks import Features
+from Tools.metrics import Metrics
+from Tools.normalizer import Normalizer
+from Tools.stocks import Features
 
 
 # Exceptions:
