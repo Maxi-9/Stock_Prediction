@@ -4,7 +4,7 @@ from overrides import overrides
 from sklearn.linear_model import LinearRegression
 
 from model import Commons, ModelNotTrainedError
-from stocks import Stock_Data, Features
+from stocks import StockData, Features
 
 
 class RegressionModel(Commons):
@@ -25,7 +25,7 @@ class RegressionModel(Commons):
     def _train(self, df: pd.DataFrame):
         # Create a new DataFrame with the necessary columns
 
-        x, y = Stock_Data.train_split(df, self.trainOn, self.predictOn)
+        x, y = StockData.train_split(df, self.trainOn, self.predictOn)
 
         # Train the model on the dataset
         self.model.fit(x, y)
@@ -33,21 +33,24 @@ class RegressionModel(Commons):
 
     @overrides
     def _batch_predict(self, df: pd.DataFrame) -> np.array:
-        # Split the data
-        x_test, y_test = Stock_Data.train_split(df, self.trainOn, self.predictOn)
+        x_test, y_test = StockData.train_split(df, self.trainOn, self.predictOn)
 
-        # Use the model to make predictions
+        predictions = []
+        for i in range(len(x_test) - self.lookback + 1):
+            x_window = x_test[i : i + self.lookback]
 
-        pred = self.model.predict(x_test)
+            # Make a prediction for the next time step
+            prediction = self.model.predict(x_window)
+            predictions.append(prediction[0])
 
-        return pred
+        return np.array(predictions)
 
     @overrides
     def _select_features(self):
         self.trainOn: [Features] = [
             Features.Open,
-            Features.High,
-            Features.Low,
+            # Features.High,
+            # Features.Low,
             # Features.Close, # Don't Include if predicting on
             # Features.Volume,
             # Features.Dividends,
@@ -56,6 +59,7 @@ class RegressionModel(Commons):
             Features.MACD,
             Features.BB,
             Features.Prev_Close,
+            # Features.Date,
         ]
 
         self.predictOn: Features = Features.Close
