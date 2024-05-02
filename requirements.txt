@@ -3,9 +3,8 @@ yfinance==0.2.18
 scikit-learn==1.2.2
 joblib~=1.2.0
 overrides~=7.4.0
-tensorflow~=2.16.1
-keras~=3.0.5
 numpy~=1.26.3
+click
 ta-lib
 torch
 requests_cache>=1.0 # For yfinance caching
