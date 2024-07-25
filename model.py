@@ -1,17 +1,22 @@
 import importlib.util
 import os
 import sys
+import time
 from abc import ABC, abstractmethod
-from typing import Optional
+from datetime import datetime
+from typing import Tuple
 
 import joblib
 import numpy as np
 import pandas as pd
+import pytorch_lightning as pl
+import torch
 from joblib import dump
 
+from Tools.data import Data
 from Tools.metrics import Metrics
 from Tools.normalizer import Normalizer
-from Tools.stocks import Features
+from features import Features
 
 
 # Exceptions:
@@ -20,15 +25,6 @@ class ModelNotTrainedError(Exception):
 
     def __init(self):
         super().__init__("Model not trained! Must be trained first.")
-
-
-class ModelAlreadyTrainedError(Exception):
-    """Exception raised when trying to retrain an already trained model. Used for less intelligent models, like linear regression"""
-
-    def __init__(self, model_type: str):
-        super().__init__(
-            f"Model is already trained. {model_type} model type can't be retrained. Use -o to overwrite model."
-        )
 
 
 class BaseClassError(TypeError):
@@ -51,58 +47,40 @@ class Commons(ABC):
         # Add other mappings here
     }
 
-    def __init__(self, lookback: int = 30):
+    def __init__(self, model, model_type: str, features: Features, lookback: int = 30):
         # Sets the version of scheme(stored values)
+        self.seed = None
         self.model_version: float = 1.0
-        self.model_type: str = self.get_model_type()
+        self.model_type: str = model_type
 
         # Model training settings
+        self.features = features
         self.lookback: int = lookback
-        self.predictOn: Optional[Features] = None
-        self.trainOn: [Features] = None
         self.training_stock: [str] = []
         self.is_trained = False
-        self.features_version: float = Features.get_version()
-
-        # Select model's features
-        self._select_features()
 
         # Create model with settings
-        self.model = self.create_model()
+        self.model = model
 
         # Normalize
         self.normalizer = None
 
-    def _select_features(self):
-        """
-        Overwrite to gain fine feature control. Default: None, PredictOn: Close value
-        :return: None
-        """
-        """
-        self.trainOn: [Features] = [
-            Features.Open,
-            Features.High,
-            Features.Low,
-            # Features.Close,
-            Features.Volume,
-            Features.Dividends,
-            Features.Splits,
-            Features.RSI,
-            Features.MACD,
-            Features.BB,
-            Features.Prev_Close,
-        ]
+    def set_seed(self, seed: int | None = None):
+        self.seed = seed
 
-        self.predictOn: Features = Features.Close
-        """
-        raise NotImplementedError()
+    def use_seed(self, seed: int | None = None):
+        if seed is None:
+            seed = int(time.time() * 1000) % 2**32
 
-    def get_features(self) -> [Features]:
-        """
+        self.seed = seed
+        os.environ["PYTHONHASHSEED"] = str(seed)
+        pl.seed_everything(seed, workers=True)
+        np.random.seed(seed)
 
-        :return: All the features, meaning any feature it is predicting on or trained on
-        """
-        return Features.combine(self.trainOn, self.predictOn)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+        return seed
 
     def save_model(self, file: str, compress_lvl=6):
         """
@@ -143,9 +121,8 @@ class Commons(ABC):
         :param df: DataFrame with all features
         :return: None
         """
-        # torch compile on arm
-
-        self._train(self._normalize(df))
+        self.use_seed(self.seed)
+        self._train(self._normalize(df, allow_calibration=True))
 
     # Overwritten for prediction of outputs, Adds column of "pred_value" as close predictions from model
 
@@ -155,35 +132,46 @@ class Commons(ABC):
         :param df: Stock market data with all features
         :return: returns just the prediction column (pred_value column)
         """
-
+        self.use_seed(self.seed)
+        if not self.is_trained:
+            raise ModelNotTrainedError
         return self._inv_normalize(
             np.concatenate(
                 (
-                    np.full((self.lookback - 1, 1), np.nan),
-                    self._batch_predict(self._normalize(df)),
+                    np.full(
+                        (self.lookback - 1, 1), np.nan
+                    ),  # 2D array with shape (lookback - 1, 1)
+                    self._batch_predict(self._normalize(df)).reshape(
+                        -1, 1
+                    ),  # Reshape to 2D
                 )
             ),
-            based_on=str(self.predictOn),
+            based_on=self.features.true_col(),
         )
 
-    def predict(self, df: pd.DataFrame) -> float:
+    def predict(self, df: pd.DataFrame) -> Tuple[datetime, float]:
         """
         Predicts on given values, if model type can only handle 1 input row, it will use the last row as the input.
 
         :param df: takes input
         :return: returns just the prediction
         """
-
-        return self._inv_normalize_value(
-            self._predict(self._normalize(df)), str(self.predictOn)
+        self.use_seed(self.seed)
+        return df.iloc[-1].index[0], self._inv_normalize_value(
+            self._predict(self._normalize(df)), self.features.predict_cols()[0]
         )
 
-    def _normalize(self, df: pd.DataFrame, convert: [str] = None):
+    def _normalize(
+        self, df: pd.DataFrame, convert: [str] = None, allow_calibration=False
+    ):
         if self.normalizer is None:
             if convert is None:
-                convert = Features.to_list(self.get_features())
+                convert = self.features.list_cols(prev_cols=True, with_true=True)
 
-            self.normalizer = Normalizer(df, convert)
+            if allow_calibration is True:
+                self.normalizer = Normalizer(df, convert)
+            else:
+                raise ValueError(f"Normalizer not set, please train first")
             df = self.normalizer.scale(df)
         else:
             df = self.normalizer.scale(df)
@@ -202,76 +190,70 @@ class Commons(ABC):
             raise ValueError(f"Normalizer not set, please train first")
 
     def calculate_metrics(
-        self,
-        df: pd.DataFrame,
-        range_threshold=0.05,
-        initial_capital=10000,
-        risk_free_rate=0.05,
-        periods_per_year=252,
+        self, df: pd.DataFrame, reduced=True, print_table=False, save_table=None
     ) -> Metrics:
         """
         Takes input df with all the columns (predicted values, and predicted on values) and calculates metrics on it.
 
+        :param save_table:
+        :param print_table: Prints debug table
+        :param reduced: reduce the amount of data calculated
         :param df: DataFrame with all columns (features + predicted values)
-        :param range_threshold: The threshold for calculating the hit rate
-        :param initial_capital: The initial capital for financial calculations
-        :param risk_free_rate: Risk-free rate for Sharpe and Sortino ratios
-        :param periods_per_year: Trading periods per year for Sharpe and Sortino ratios
         :return: Metrics object
         """
-        # unshift shift_close column to get the true close
-        df = df.copy()
+        Data.drop_na(df)
+        y_true = df[list(self.features.predict_cols(prev_cols=True))[0]]
+        y_pred = df[self.features.prediction_col()]
+        buy_true = self.features.get_buy_df(df)
 
-        df = df.dropna()
-
-        y_pred = df["pred_value"]
-        y_true = df[str(self.predictOn)]
-
-        buy_df = Commons.get_buy_rows(df)
-        open_vals = buy_df[str(Features.Open)]
-        close_vals = buy_df[str(Features.Close)]
-
-        mse = Metrics.calculate_mse(y_true, y_pred)
-        r2 = Metrics.calculate_r2(y_true, y_pred)
-        mae = Metrics.calculate_mae(y_true, y_pred)
-        rmse = Metrics.calculate_rmse(y_true, y_pred)
-        cv = Metrics.calculate_cv(y_true)
-        mpe = Metrics.calculate_mpe(y_true, y_pred)
-        mape = Metrics.calculate_mape(y_true, y_pred)
-        smape = Metrics.calculate_smape(y_true, y_pred)
-        directional_accuracy = Metrics.calculate_directional_accuracy(y_true, y_pred)
-
-        # Financial metrics use filtered open/close values
-        profit_rate = Metrics.calculate_profit_rate(open_vals, close_vals)
-
-        cumulative_return = Metrics.calculate_cumulative_return(
-            open_vals, close_vals, initial_capital
-        )
-        maximum_drawdown = Metrics.calculate_maximum_drawdown(
-            open_vals, close_vals, initial_capital
-        )
-        sharpe_ratio = Metrics.calculate_sharpe_ratio(
-            open_vals, close_vals, risk_free_rate, periods_per_year
-        )
-        sortino_ratio = Metrics.calculate_sortino_ratio(
-            open_vals, close_vals, risk_free_rate, periods_per_year
+        buy_pred = self.features.get_buy_df(
+            df, pred_val_col=self.features.prediction_col()
         )
 
-        return Metrics(
-            mse=mse,
-            r2=r2,
-            mae=mae,
-            rmse=rmse,
-            cv=cv,
-            mpe=mpe,
-            mape=mape,
-            smape=smape,
-            directional_accuracy=directional_accuracy,
-            profit_rate=profit_rate,
-            cumulative_return=cumulative_return,
-            maximum_drawdown=maximum_drawdown,
-            sharpe_ratio=sharpe_ratio,
-            sortino_ratio=sortino_ratio,
+        price_dif = self.features.price_diff(df)
+
+        # Print combined df with original df and buy_true, buy_pred and price_diff
+        if print_table:
+            combined_df = pd.concat(
+                [
+                    df,
+                    buy_true.to_frame("buy_true").rename(
+                        columns={buy_true.name: "buy_true"}
+                    ),
+                    buy_pred.to_frame("buy_pred").rename(
+                        columns={buy_pred.name: "buy_pred"}
+                    ),
+                    price_dif.to_frame("price_diff"),
+                ],
+                axis=1,
+            )
+            print(combined_df)
+
+        if save_table is not None:
+            with pd.ExcelWriter(Data.sanitize_name(save_table)) as writer:
+                combined_df = pd.concat(
+                    [
+                        df,
+                        buy_true.to_frame("buy_true").rename(
+                            columns={buy_true.name: "buy_true"}
+                        ),
+                        buy_pred.to_frame("buy_pred").rename(
+                            columns={buy_pred.name: "buy_pred"}
+                        ),
+                        price_dif.to_frame("price_diff"),
+                    ],
+                    axis=1,
+                )
+                combined_df.index = combined_df.index.strftime("%Y-%m-%d")
+                combined_df.to_excel(writer, sheet_name="Stock Data")
+
+        return Metrics.create(
+            y_true=y_true,
+            y_pred=y_pred,
+            buy_true=buy_true,
+            buy_pred=buy_pred,
+            price_dif=price_dif,
+            is_number=self.features.predict_on.is_number and not reduced,
         )
 
     @staticmethod
@@ -290,31 +272,6 @@ class Commons(ABC):
             else:
                 raise FileNotFoundError
 
-    @abstractmethod
-    def create_model(self):
-        """
-
-        :return: A new model
-        """
-        raise NotImplementedError()
-
-    @staticmethod
-    def get_model_type() -> str:
-        """
-        This is what differences models in files and should just return a string
-        :return: model type in string
-        """
-        # If you created a custom model, don't forget to add your model to Commons.model_mapping
-        raise BaseClassError()
-
-    @staticmethod
-    def get_buy_rows(df):
-        # Filter rows where predicted close value is larger than the open value
-
-        buy_df = df[df["pred_value"] > df[str(Features.Open)]]
-
-        return buy_df
-
 
 def import_children(directory="Types"):
     models_dir = os.path.join(os.path.dirname(__file__), directory)
@@ -323,15 +280,7 @@ def import_children(directory="Types"):
         if file.endswith("Model.py"):
             model_name = file[:-3]  # Remove the .py extension
             try:
-                module = importlib.import_module(model_name)
-                model_class = getattr(module, model_name)
-                if hasattr(model_class, "get_model_type"):
-                    model_type = model_class.get_model_type()
-                    Commons.model_mapping[model_type] = model_class
-                else:
-                    print(
-                        f"Warning: The class {model_name} does not implement 'get_model_type'."
-                    )
+                importlib.import_module(model_name)
             except (ImportError, AttributeError) as e:
                 print(f"Error importing {model_name}: {e}")
     sys.path.remove(models_dir)  # Remove the directory from sys.path after importing
