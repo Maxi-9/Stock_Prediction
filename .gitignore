@@ -4,5 +4,5 @@ venv
 .spmodel
 .yaml
 .xlsx
-lightning_logs/*
+lightning_logs
 .ckpt
