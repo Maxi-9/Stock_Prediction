@@ -4,9 +4,10 @@ scikit-learn==1.2.2
 joblib~=1.2.0
 overrides~=7.4.0
 numpy~=1.26.3
-click
+click~=8.1.6
 ta-lib
-torch
+torch~=2.2.1
 requests_cache>=1.0 # For yfinance caching
 requests_ratelimiter>=0.3.1
 scipy>=1.6.3 # For yfinance price repair?
+lightning~=2.3.1
