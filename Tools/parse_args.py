@@ -12,6 +12,20 @@ class Parse_Args:
         "mtype", nargs=1, type=click.Choice(Commons.model_mapping.keys())
     )
 
+    save_xlsx = click.option(
+        "-x",
+        "--save",
+        type=str,
+        default=None,
+        help="Saves test table to specified file as xlsx file.",
+    )
+    debug = click.option(
+        "-d",
+        "--debug",
+        is_flag=True,
+        help="Prints more info: prints debug table and more metrics.",
+    )
+
     overwrite = click.option(
         "-o",
         "--overwrite",
@@ -19,15 +33,22 @@ class Parse_Args:
         help="Overwrites (if exists) else trains pre-existing model.",
     )
 
+    # ignoreTestList = click.option(
+    #     "-i",
+    #     "--ignoreList",
+    #     is_flag=True,
+    #     help="Don't test to see if training stocks are on the test list from test.py.",
+    # )
+
     @staticmethod
-    def stocks(default=None):
+    def stocks(default=None, multiple=True):
         if default is None:
             default = []
         req = default is None
         return click.option(
             "-s",
             "--stocks",
-            multiple=True,
+            multiple=multiple,
             type=str,
             default=default,
             required=req,
@@ -41,6 +62,15 @@ class Parse_Args:
         - stock:start      | Start being date in form: MM-DD-YYYY\n
         """,
         )
+
+    seed = click.option(
+        "-e",
+        "--seed",
+        type=int,
+        default=None,
+        help="""\b
+    Random seed if not specified. Set fixed seed for supported models.\n""",
+    )  # Warning: May not work for all models
 
     split = click.option(
         "-t",
