@@ -1,5 +1,4 @@
 from Tools.parse_args import Parse_Args
-from Tools.stocks import StockData
 from model import Commons
 
 
@@ -8,21 +7,22 @@ from model import Commons
 
 @Parse_Args.parser("Test ML model.")
 @Parse_Args.filename
+@Parse_Args.seed
+@Parse_Args.ignoreTestList
 @Parse_Args.stocks()
-def main(stocks, filename):
+def main(stocks, filename, seed):
     model = Commons.load_from_file(filename)
 
     for stockName in stocks:
-        stock = StockData.stocks_parse(stockName, model.get_features())
-
-        test_df = stock.df
-        print(f"Testing on: {stockName}, len: {len(stock.df)}")
+        df = model.features.get_stocks_parse(stockName)
+        model.set_seed(seed)
+        print(f"Testing on: {stockName}, len: {len(df)}")
 
         # Use the model to make predictions
-        test_df.loc[:, "pred_value"] = model.batch_predict(stock.df)
+        df.loc[:, "pred_value"] = model.batch_predict(df)
 
         # Calculate metrics
-        metrics = model.calculate_metrics(test_df)
+        metrics = model.calculate_metrics(df)
         print(f"{metrics}\n\n")
 
 

@@ -1,24 +1,22 @@
 from Tools.parse_args import Parse_Args
-from Tools.stocks import StockData
 from Types.RegressionModel import RegressionModel
 
 
 @Parse_Args.parser("Predict values using trained ML model.")
 @Parse_Args.filename
-@Parse_Args.stocks()
-def predict(filename, stocks):
+@Parse_Args.seed
+@Parse_Args.stocks(multiple=False)
+def predict(filename, stocks, seed):
     print(filename, stocks)
     # Load model
     model = RegressionModel.load_from_file(filename)
-
-    stock = StockData.stocks_parse(stocks, model.get_features())
+    model.set_seed(seed)
+    df = model.features.get_stocks_parse(stocks)
 
     # Predict closing value
-    predicted_close = model.predict(stock.df)
+    pred_date, pred_close = model.predict(df)
 
-    print(
-        f"Predicted closing value({stock.df.index[-1]}) for {stocks}: {predicted_close[0]:.2f}"
-    )
+    print(f"Predicted closing value({pred_date}) for {stocks}: {pred_close:.2f}")
 
 
 if __name__ == "__main__":
