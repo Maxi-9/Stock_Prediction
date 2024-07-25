@@ -1,44 +1,34 @@
 from overrides import overrides
 
-from Tools.stocks import StockData, Features
 from model import *
 
 
 class SequentialModel(Commons):
     def __init__(self):
-        super().__init__()
-        self.lookback = 30  # Set lookback
-
-    @staticmethod
-    def get_model_type() -> str:
-        return "Example"
-
-    @overrides
-    def _select_features(self):
-        """
-        Select the features that will be used in the model (also how many columns will be in df)
-        :return:
-        """
-        self.trainOn = [
+        feat = [
             Features.Open,
-            Features.High,
-            Features.Low,
-            Features.RSI,
-            Features.MACD,
             Features.BB,
-            Features.Prev_Close,
+            Features.RSI,
             Features.Date,
+            Features.MA,
+            Features.MACD,
         ]
-        self.predictOn = Features.Close
+        super().__init__(
+            None, "Example", Features(feat, Features.Close), lookback=1
+        )  # Set lookback to 1 to disable
+        # Make sure to add model to index(see bottom of file)
 
     @overrides
-    def create_model(self):
-        return  # Create instance of model here
+    def use_seed(self, seed: int | None = None):
+        super(seed)
+        pass  # Use library specific seed setter here
 
     @overrides
     def _train(self, df: pd.DataFrame):
-        x, y = StockData.train_split(df, self.trainOn, self.predictOn)
-        x_rolled, y_rolled = StockData.create_rolling_windows(x, y, self.lookback)
+        x, y = Data.train_split(
+            df, self.features.train_cols(), self.features.predict_on
+        )
+        x_rolled, y_rolled = Data.create_rolling_windows(x, y, self.lookback)
         # x_rolled has shape (n_samples, lookback, n_features) with features being len(self.trainOn)
         # y_rolled has shape (n_samples,) (978,)
         try:
@@ -56,10 +46,11 @@ class SequentialModel(Commons):
         :param df: Dataset with features from trainOn without lookback
         :return: returns just the prediction column (pred_value column) with the date index
         """
-        x_test, y_test = StockData.train_split(df, self.trainOn, self.predictOn)
-        x_rolled, y_rolled = StockData.create_rolling_windows(
-            x_test, y_test, self.lookback
+        x_test, y_test = Data.train_split(
+            df, self.features.train_cols(), self.features.predict_on
         )
+        x_rolled, y_rolled = Data.create_rolling_windows(x_test, y_test, self.lookback)
+
         pass
 
     @overrides
@@ -72,5 +63,5 @@ class SequentialModel(Commons):
         pass
 
 
-# Uncomment this to add to train.py/test.py/predict.py automatically
+# Uncomment this to add to train.py, test.py, and predict.py automatically
 # Commons.model_mapping["Sequential"] = SequentialModel

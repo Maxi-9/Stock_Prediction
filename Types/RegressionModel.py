@@ -3,37 +3,43 @@ import pandas as pd
 from overrides import overrides
 from sklearn.linear_model import LinearRegression
 
-from Tools.stocks import StockData, Features
-from model import Commons, ModelNotTrainedError
+from Tools.data import Data
+from features import Features
+from model import Commons
 
 
 class RegressionModel(Commons):
     # Creates new model
     def __init__(self):
-        super().__init__(lookback=1)
-
-    @staticmethod
-    def get_model_type() -> str:
-        return "Linear"
-
-    @overrides
-    def create_model(self):
-        return LinearRegression()
+        feat = [
+            Features.Open,
+            Features.BB,
+            Features.RSI,
+            Features.Date,
+            Features.MA,
+            Features.MACD,
+        ]
+        super().__init__(
+            LinearRegression(), "Linear", Features(feat, Features.Close), lookback=1
+        )
 
     # Trains Model on given data
     @overrides
     def _train(self, df: pd.DataFrame):
         # Create a new DataFrame with the necessary columns
 
-        x, y = StockData.train_split(df, self.trainOn, self.predictOn)
-
+        x, y = Data.train_split(
+            df, self.features.train_cols(), self.features.predict_on
+        )
         # Train the model on the dataset
         self.model.fit(x, y)
         self.is_trained = True
 
     @overrides
     def _batch_predict(self, df: pd.DataFrame) -> np.array:
-        x_test, y_test = StockData.train_split(df, self.trainOn, self.predictOn)
+        x_test, y_test = Data.train_split(
+            df, self.features.train_cols(), self.features.predict_on
+        )
 
         predictions = []
         for i in range(len(x_test) - self.lookback + 1):
@@ -46,32 +52,8 @@ class RegressionModel(Commons):
         return np.array(predictions)
 
     @overrides
-    def _select_features(self):
-        self.trainOn: [Features] = [
-            Features.Open,
-            # Features.High,
-            # Features.Low,
-            # Features.Close, # Don't Include if predicting on
-            # Features.Volume,
-            # Features.Dividends,
-            # Features.Splits,
-            Features.RSI,
-            Features.MACD,
-            Features.BB,
-            Features.Prev_Close,
-            # Features.Date,
-        ]
-
-        self.predictOn: Features = Features.Close
-
-    @overrides
     def _predict(self, df: pd.DataFrame) -> float:
-        if len(df) < 1:
-            raise ValueError("Input DataFrame should have at least one row")
-        if self.is_trained is not True:
-            raise ModelNotTrainedError()
-
-        x = df[Features.to_list(self.trainOn)].iloc[[-1]]  # Select the last column
+        x = df[self.features.train_cols()].iloc[[-1]]  # Select the last row
 
         # Predict the target values using the model
         prediction = self.model.predict(x)
