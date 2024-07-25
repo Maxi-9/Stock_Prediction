@@ -2,3 +2,6 @@
 venv
 .idea
 .spmodel
+.yaml
+.xlsx
+lightning_logs/*
