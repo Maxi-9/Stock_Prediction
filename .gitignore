@@ -5,3 +5,4 @@ venv
 .yaml
 .xlsx
 lightning_logs/*
+.ckpt
