@@ -1,8 +1,8 @@
 *.vscode
 venv
 .idea
-.spmodel
-.yaml
-.xlsx
+*.spmodel
+*.yaml
+*.xlsx
 lightning_logs
-.ckpt
+*.ckpt
