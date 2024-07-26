@@ -8,7 +8,6 @@ from model import Commons
 @Parse_Args.parser("Test ML model.")
 @Parse_Args.filename
 @Parse_Args.seed
-@Parse_Args.ignoreTestList
 @Parse_Args.stocks()
 def main(stocks, filename, seed):
     model = Commons.load_from_file(filename)
