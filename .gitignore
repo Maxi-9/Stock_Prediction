@@ -1,8 +1,23 @@
-*.vscode
+# VSCode directory
+.vscode
+
+# Virtual environment
 venv
+
+# JetBrains IDE directory
 .idea
+
+# Model files
 *.spmodel
+
+# YAML files
 *.yaml
+
+# Excel files
 *.xlsx
+
+# Lightning logs
 lightning_logs
+
+#ckpt
 *.ckpt
