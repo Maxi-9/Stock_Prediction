@@ -47,10 +47,11 @@ class LightningSequentialModel(L.LightningModule):
 
 class SequentialModel(Commons):
     def __init__(self):
-        self.hidden_size = 64
+        # Set hyperparameters and initialize model as before
+        self.hidden_size = 128
         self.num_layers = 2
         self.learning_rate = 0.001
-        self.num_epochs = 100
+        self.num_epochs = 200
         self.batch_size = 32
 
         feat = [
@@ -62,23 +63,24 @@ class SequentialModel(Commons):
             Features.MACD,
         ]
         f_list = Features(feat, Features.Close)
-
         input_size = len(list(f_list.train_cols()))
         output_size = 1
 
         self.model = LightningSequentialModel(
-            input_size,
-            self.hidden_size,
-            self.num_layers,
-            output_size,
-            self.learning_rate,
+            input_size, self.hidden_size, self.num_layers, output_size, self.learning_rate
         )
+
+        # Initialize Trainer once with checkpointing callback
+        self.checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
+            dirpath="checkpoints/", filename="model-{epoch:02d}-{loss:.2f}", save_top_k=1
+        )
+
         self.trainer = L.Trainer(
             max_epochs=self.num_epochs,
             log_every_n_steps=10,
             enable_checkpointing=True,
             deterministic=True,
-            benchmark=False,
+            callbacks=[self.checkpoint_callback],
         )
 
         super().__init__(self.model, "LSTM", f_list)
@@ -87,9 +89,10 @@ class SequentialModel(Commons):
     def worker_init_function(worker_id):
         worker_seed = torch.initial_seed() % 2**32
         np.random.seed(worker_seed)
-
+        
     @overrides
     def _train(self, df: pd.DataFrame):
+        # Prepare data as before
         x, y = Data.train_split(
             df, self.features.train_cols(prev_cols=True), self.features.predict_on
         )
