@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import importlib.util
 import os
 import sys
@@ -229,7 +231,7 @@ class Commons(ABC):
             )
             print(combined_df)
 
-        if save_table is not None:
+        if save_table is not None and "." in save_table:
             with pd.ExcelWriter(Data.sanitize_name(save_table)) as writer:
                 combined_df = pd.concat(
                     [
