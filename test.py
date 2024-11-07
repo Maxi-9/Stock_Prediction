@@ -13,7 +13,9 @@ def main(stocks, filename, seed):
     model = Commons.load_from_file(filename)
 
     for stockName in stocks:
+        print(f"Testing: {stockName}")
         df = model.features.get_stocks_parse(stockName)
+
         model.set_seed(seed)
         print(f"Testing on: {stockName}, len: {len(df)}")
 

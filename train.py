@@ -1,13 +1,14 @@
+import warnings
+
+from urllib3.exceptions import NotOpenSSLWarning
+
 from Tools.data import Data
 from Tools.parse_args import Parse_Args
 from model import Commons
 
+warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 # Testing Args:  python3 Train.py Models/test.spm Linear -o -s AAPL -s AMZN Train on AMZN, MSFT, GOOGL, TSLA, META,
-
-# NVDA, PYPL, ADBE, NFLX, COST, AVGO, TXN, ASML, QCOM, CMCSA, CSCO, INTC, AMAT, LRCX, KLAC, MRVL, ORCL, SNPS, MKSI,
-# AMD, LOGI, CRWD, ZS, DDOG, PANW, PAYC, CHTR, VRSN, SPLK, TEAM, OKTA, WDAY, CRM, TWLO, DOCU, CRWD, ZM, SNOW, COUP,
-# ESTC, CDNS, SWKS, MCHP, DBX, FTNT, NET
 
 
 @Parse_Args.parser("Train ML model.")
@@ -31,17 +32,21 @@ def main(filename, debug, split, overwrite, mtype, stocks, save, seed):
     model.set_seed(seed)
     test_sets = []
     for stockName in stocks:
-        print(f"Training: {stockName}")
+        try:
+            print(f"Training: {stockName}")
 
-        df = model.features.get_stocks_parse(stockName)
+            df = model.features.get_stocks_parse(stockName)
 
-        # Split data,
-        train_df, test_df = Data.train_test_split(df, split)
+            # Split data,
+            train_df, test_df = Data.train_test_split(df, split)
 
-        model.train(train_df)
+            model.train(train_df)
 
-        model.training_stock.append(stockName)
-        test_sets.append((stockName, test_df.copy()))
+            model.training_stock.append(stockName)
+            if len(test_df) < 5:
+                test_sets.append((stockName, test_df.copy()))
+        except Exception as e:
+            print("Failed on: ", stockName, e)
 
     model.save_model(filename)
     print(f"Successfully saved model at: {filename}")
