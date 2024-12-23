@@ -1,12 +1,7 @@
-import warnings
-
-from urllib3.exceptions import NotOpenSSLWarning
-
-from Tools.data import Data
+from TimeSeriesPrediction.data import Data
+from TimeSeriesPrediction.model import Commons
 from Tools.parse_args import Parse_Args
-from model import Commons
 
-warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 # Testing Args:  python3 Train.py Models/test.spm Linear -o -s AAPL -s AMZN Train on AMZN, MSFT, GOOGL, TSLA, META,
 
@@ -43,7 +38,7 @@ def main(filename, debug, split, overwrite, mtype, stocks, save, seed):
             model.train(train_df)
 
             model.training_stock.append(stockName)
-            if len(test_df) < 5:
+            if split != 1:
                 test_sets.append((stockName, test_df.copy()))
         except Exception as e:
             print("Failed on: ", stockName, e)
@@ -51,7 +46,7 @@ def main(filename, debug, split, overwrite, mtype, stocks, save, seed):
     model.save_model(filename)
     print(f"Successfully saved model at: {filename}")
 
-    if split != 1:
+    if split != 1 and len(test_sets) > 0:
         print("\n\nFinished Training, now testing")
         for stock, test_df in test_sets:
             print(f"Testing: {stock}")

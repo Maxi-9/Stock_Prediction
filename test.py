@@ -1,6 +1,5 @@
+from TimeSeriesPrediction.model import Commons
 from Tools.parse_args import Parse_Args
-from model import Commons
-
 
 # Test Args: python3 test.py Models/test.spmodel -s AMZN
 
@@ -10,6 +9,7 @@ from model import Commons
 @Parse_Args.seed
 @Parse_Args.stocks()
 def main(stocks, filename, seed):
+
     model = Commons.load_from_file(filename)
 
     for stockName in stocks:
