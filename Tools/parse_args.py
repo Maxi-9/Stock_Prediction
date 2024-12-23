@@ -1,6 +1,6 @@
 import click
 
-from model import Commons
+from TimeSeriesPrediction.model import Commons
 
 
 class Parse_Args:
@@ -17,7 +17,7 @@ class Parse_Args:
         "--save",
         type=str,
         default=None,
-        help="Saves test table to specified file as xlsx file.",
+        help="Saves test table to specified file as xlsx file, used for debugging and testing.",
     )
     debug = click.option(
         "-d",
@@ -33,12 +33,21 @@ class Parse_Args:
         help="Overwrites (if exists) else trains pre-existing model.",
     )
 
-    # ignoreTestList = click.option(
-    #     "-i",
-    #     "--ignoreList",
-    #     is_flag=True,
-    #     help="Don't test to see if training stocks are on the test list from test.py.",
-    # )
+    cache = click.option(
+        "-c",
+        "--cache",
+        type=str,
+        default="cache",
+        help="Creates a cache file for each stock in provided directory, overwrites the rows that already exist."
+    )
+
+    log = click.option(
+        "-l",
+        "--log",
+        type=str,
+        default="log",
+        help="Creates a log file for each stock, designed as a way to measure the performance of the models in a with real world scenario."
+    )
 
     @staticmethod
     def stocks(default=None, multiple=True):
@@ -69,15 +78,15 @@ class Parse_Args:
         type=int,
         default=None,
         help="""\b
-    Random seed if not specified. Set fixed seed for supported models.\n""",
-    )  # Warning: May not work for all models
+    Random seed if not specified. Set fixed seed for supported models, setting seed will make the model deterministic but the input data from yFinance isn't deterministic.\n""",
+    )  # Warning: May not work for all models, if you create your own model, you customize it to set seed
 
     split = click.option(
         "-t",
         "--split",
         type=float,
         default=0.8,
-        help="Splits training and test data. Higher value means more training data (0-1 value).",
+        help="Splits training and test data. Higher value means more training data (Input a float between 0 and 1).",
     )
 
     @staticmethod

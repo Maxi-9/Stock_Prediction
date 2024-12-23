@@ -1,6 +1,6 @@
 import pandas as pd
 
-from features import BaseFeature, Features
+from TimeSeriesPrediction.features import BaseFeature, Features
 
 
 class DateFeature(BaseFeature):

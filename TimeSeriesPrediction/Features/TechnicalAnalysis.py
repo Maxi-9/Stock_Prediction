@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import talib
 
-from features import BaseFeature, Features
+from TimeSeriesPrediction.features import BaseFeature, Features
 
 
 class RSIFeature(BaseFeature):

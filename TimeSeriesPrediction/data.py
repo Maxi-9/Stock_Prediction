@@ -80,7 +80,7 @@ class Data:
 
     @staticmethod
     def sanitize_name(name):
-        # Define a set of illegal characters for Excel sheet titles
+        # Illegal characters for file names
         illegal_chars = ["\\", "/", "*", "[", "]", ":", "?"]
 
         for char in illegal_chars:
