@@ -51,6 +51,7 @@ class Normalizer:
 
     def inv_normalize_value(self, value: float, based_on: str):
         scaler = self.scalars.get(based_on)
+
         if scaler is not None:
             # Reshape your input to match the original data shape
             value = np.array(value).reshape(-1, 1)

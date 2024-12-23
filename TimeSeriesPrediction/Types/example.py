@@ -1,6 +1,6 @@
 from overrides import overrides
 
-from model import *
+from TimeSeriesPrediction.model import *
 
 
 class SequentialModel(Commons):

@@ -15,10 +15,10 @@ import pytorch_lightning as pl
 import torch
 from joblib import dump
 
-from Tools.data import Data
-from Tools.metrics import Metrics
-from Tools.normalizer import Normalizer
-from features import Features
+from TimeSeriesPrediction.data import Data
+from TimeSeriesPrediction.features import Features
+from TimeSeriesPrediction.metrics import Metrics
+from TimeSeriesPrediction.normalizer import Normalizer
 
 
 # Exceptions:
@@ -159,9 +159,13 @@ class Commons(ABC):
         :return: returns just the prediction
         """
         self.use_seed(self.seed)
-        return df.iloc[-1].index[0], self._inv_normalize_value(
-            self._predict(self._normalize(df)), self.features.predict_cols()[0]
-        )
+        if "last_date" in df.attrs:
+            date=df.attrs["last_date"]
+        else:
+            date=df.index[-1]
+        return date, self._inv_normalize_value(
+            self._predict(self._normalize(df)), str(self.features.true_col())
+        )[0]
 
     def _normalize(
         self, df: pd.DataFrame, convert: [str] = None, allow_calibration=False
@@ -266,6 +270,7 @@ class Commons(ABC):
         :param if_exists: If file doesn't exist, don't throw error if True
         :return: returns the model(of any variant) from specified file
         """
+
         try:
             return joblib.load(file)
         except FileNotFoundError:

@@ -62,6 +62,12 @@ class BaseFeature:
         self.base_sensitive = base_sensitive
         self.is_number = is_number
 
+    def __eq__(self, other):
+        return self.__class__ == other.__class__
+
+    def __hash__(self):
+        return hash(self.__class__)
+
     def cols(self, prev_cols=False):
         if self.is_sensitive and prev_cols:
             return ["prev_" + col for col in self.columns]
@@ -296,20 +302,26 @@ class Features(metaclass=FeatureMeta):
         cls.feature_list[name] = feature
 
     @staticmethod
+    def propagate_attrs(orig_df, new_df):
+        new_df.attrs = orig_df.attrs.copy()
+        return new_df
+
+    @staticmethod
     def get_raw_stock(
-        name: str,
-        period: str = None,
-        start_date: datetime = None,
-        end_date: datetime = None,
+            name: str,
+            period: str = None,
+            start_date: datetime = None,
+            end_date: datetime = None,
     ) -> pd.DataFrame:
         ticker = yf.Ticker(name)
-
         historical_data = ticker.history(start=start_date, end=end_date, period=period)
 
         if historical_data.empty:
             raise Exception(f"Stock {name} not found")
 
         historical_data.index = historical_data.index.tz_localize(None).normalize()
+        historical_data.attrs["last_date"] = historical_data.index[-1]
+
         return historical_data
 
     def get_stocks_parse(self, name: str) -> pd.DataFrame:
@@ -321,16 +333,18 @@ class Features(metaclass=FeatureMeta):
                     start_date_str, end_date_str = brackets.split(",")
                     start_date = datetime.strptime(start_date_str, "%m-%d-%Y")
                     end_date = datetime.strptime(end_date_str, "%m-%d-%Y")
-                    return self.get_stocks(
-                        stock, start_date=start_date, end_date=end_date
-                    )
+                    original_df = self.get_stocks(stock, start_date=start_date, end_date=end_date)
                 else:
                     start_date = datetime.strptime(brackets, "%m-%d-%Y")
-                    return self.get_stocks(stock, start_date=start_date)
+                    original_df = self.get_stocks(stock, start_date=start_date)
             else:
-                return self.get_stocks(stock, period=brackets)
+                original_df = self.get_stocks(stock, period=brackets)
         else:
-            return self.get_stocks(name)
+            original_df = self.get_stocks(name)
+
+        # Propagate the attrs metadata
+        result_df = self.propagate_attrs(original_df, original_df)
+        return result_df
 
     @classmethod
     def list_added_cols(cls):
@@ -390,15 +404,15 @@ class Features(metaclass=FeatureMeta):
 
     @staticmethod
     def drop_na(df: pd.DataFrame):
-        # This method should handle dropping NA values from the DataFrame
+        # print single full row full width
         df.dropna(inplace=True)
 
     def get_stocks(
-        self,
-        name: str,
-        period: str = None,
-        start_date: datetime = None,
-        end_date: datetime = None,
+            self,
+            name: str,
+            period: str = None,
+            start_date: datetime = None,
+            end_date: datetime = None,
     ) -> pd.DataFrame:
         """
         Gets the stock data from yfinance and calculates each feature
@@ -409,43 +423,43 @@ class Features(metaclass=FeatureMeta):
         :return: Dataframe with each main feature requested and each feature requested
         """
         df = self.get_raw_stock(name, period, start_date, end_date)
+        # Print sample of DataFrame before dropping NaNs
+        print("10 rows of DataFrame before dropping NaNs:")
+        pd.set_option("display.max_columns", None)
+        print(df.tail(10))
 
         feat_data: dict[BaseFeature, pd.DataFrame] = {}
         for feature in self.feat_list():
-            # gets feature from feature list
             if feature not in self.base_features.values():
                 feat_df = feature.calculate(df.copy())
             else:
-                feat_df = df[feature.cols()].copy()  # Make a copy to be safe
+                feat_df = df[feature.cols()].copy()
 
             feat_data[feature] = feat_df
 
-            # Apply shifts and renaming based on feature sensitivity and predict_on condition
             if feature is self.predict_on:
                 for col in feature.columns:
                     prev_col = f"prev_{col}"
-                    feat_df.loc[:, prev_col] = feat_df[col].shift(
-                        -1
-                    )  # Use .loc to avoid SettingWithCopyWarning
+                    feat_df.loc[:, prev_col] = feat_df[col].shift(-1)
                     true_col = f"true_{col}"
                     feat_df.rename(columns={col: true_col}, inplace=True)
             elif feature.is_sensitive:
                 for col in feature.columns:
                     prev_col = f"prev_{col}"
-                    feat_df.loc[:, prev_col] = feat_df[col].shift(
-                        -1
-                    )  # Use .loc to avoid SettingWithCopyWarning
+                    feat_df.loc[:, prev_col] = feat_df[col].shift(-1)
                     feat_df.drop(columns=[col], inplace=True)
 
-        # Concatenate all the dataframes
+        # Concatenate feature data
         df = pd.concat(feat_data.values(), axis=1)
 
-        # Keep only the required columns
+        # Propagate attrs to the new DataFrame
+        df = self.propagate_attrs(self.get_raw_stock(name, period, start_date, end_date), df)
+
         df = df[list(self.list_cols(with_true=True, prev_cols=True))]
 
-        # Drop NA values
         orig_len = len(df)
         self.drop_na(df)
+
         print(f"Dropped {orig_len - len(df)} rows out of {orig_len} rows")
 
         return df
@@ -455,7 +469,6 @@ class Features(metaclass=FeatureMeta):
         return self.predict_on.price_diff(df)
 
     def get_buy_df(self, data, pred_val_col: str = None):
-        # Assume `data` contains a column with the name in `pred_val_col` which has the predicted values
         if pred_val_col is None:
             pred_val_col = self.predict_on.true_col()
 
@@ -495,7 +508,7 @@ class Features(metaclass=FeatureMeta):
 
 def import_children(directory="Features"):
     models_dir = os.path.join(os.path.dirname(__file__), directory)
-
+    
     for filename in os.listdir(models_dir):
         if filename.endswith(".py") and not filename.startswith("__"):
             module_name = filename[:-3]
@@ -507,5 +520,4 @@ def import_children(directory="Features"):
             sys.modules[module_name] = module
 
 
-# Assuming your child classes are in a directory named 'children'
 import_children()

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.utils.data
 from overrides import overrides
 
-from model import *
+from TimeSeriesPrediction.model import *
 
 
 class LightningSequentialModel(L.LightningModule):

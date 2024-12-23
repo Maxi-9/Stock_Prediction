@@ -3,9 +3,9 @@ import pandas as pd
 from overrides import overrides
 from sklearn.linear_model import LinearRegression
 
-from Tools.data import Data
-from features import Features
-from model import Commons
+from TimeSeriesPrediction.data import Data
+from TimeSeriesPrediction.features import Features
+from TimeSeriesPrediction.model import Commons
 
 
 class RegressionModel(Commons):
