@@ -4,12 +4,45 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.ipynb_checkpoints" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/dataSources" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_10" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_11" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_12" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_13" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_14" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_15" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_16" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_17" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_18" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_19" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_20" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_21" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_22" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_23" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_24" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_25" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_26" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_27" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_28" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_29" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_30" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_31" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_32" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_33" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_34" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_35" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_4" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_5" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_6" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_7" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_8" />
+      <excludeFolder url="file://$MODULE_DIR$/lightning_logs/version_9" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.10" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.12 (Stock_Prediction)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">
-    <option name="removeUnused" value="true" />
     <option name="modifyBaseFiles" value="true" />
   </component>
 </module>
