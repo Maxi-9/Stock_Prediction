@@ -19,5 +19,11 @@ venv
 # Lightning logs
 lightning_logs
 
+# checkpoints
+checkpoints
+
 #ckpt
 *.ckpt
+
+!/checkpoints/
+!/lightning_logs/
